@@ -8,7 +8,7 @@ Prerequisites
 Unity Editor (version 2021 or later recommended)
 Basic understanding of Unity and C# scripting
 
-How to play
+How to play:
 Drag and drop pieces to make moves.
 Follow standard chess rules.
 
