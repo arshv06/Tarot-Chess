@@ -5,6 +5,7 @@ public class ChessPieceMovement : MonoBehaviour
     private Vector3 originalPosition;
     private bool isDragging = false;
     private GameManager gameManager;
+    private BoardManager boardManager;
 
     private void Start()
     {
@@ -14,6 +15,12 @@ public class ChessPieceMovement : MonoBehaviour
         if (gameManager == null)
         {
             Debug.LogError("GameManager not found in the scene!");
+        }
+
+        boardManager = FindObjectOfType<BoardManager>();
+        if (boardManager == null)
+        {
+        Debug.LogError("BoardManager not found in the scene!");
         }
     }
 
@@ -117,6 +124,8 @@ public class ChessPieceMovement : MonoBehaviour
     float tolerance = 0.1f; // Use a small tolerance to handle floating-point precision issues
 
     // Pawn Movement Logic
+
+    
     if (tag.Contains("Pawn"))
     {
         if (tag.StartsWith("White"))
