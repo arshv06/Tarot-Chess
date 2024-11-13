@@ -7,11 +7,12 @@ public class ChessPieceMovement : MonoBehaviour
     private GameManager gameManager;
     private BoardManager boardManager;
 
+    // Flags for special moves
+    private bool hasMoved = false;
+
     private void Start()
     {
-        // Find the GameManager in the scene
         gameManager = FindObjectOfType<GameManager>();
-
         if (gameManager == null)
         {
             Debug.LogError("GameManager not found in the scene!");
@@ -20,25 +21,23 @@ public class ChessPieceMovement : MonoBehaviour
         boardManager = FindObjectOfType<BoardManager>();
         if (boardManager == null)
         {
-        Debug.LogError("BoardManager not found in the scene!");
+            Debug.LogError("BoardManager not found in the scene!");
         }
     }
 
     private void OnMouseDown()
-{
-    if (gameManager != null)
     {
-        if ((gameManager.IsWhiteTurn() && tag.StartsWith("White")) || 
-            (!gameManager.IsWhiteTurn() && tag.StartsWith("Black")))
+        if (gameManager != null)
         {
-            originalPosition = transform.position;
-            isDragging = true;
-
-            // Bring the piece to the front by changing the z-position
-            GetComponent<SpriteRenderer>().sortingOrder = 10; // A higher value ensures the piece is on top
+            if ((gameManager.IsWhiteTurn() && tag.StartsWith("White")) || 
+                (!gameManager.IsWhiteTurn() && tag.StartsWith("Black")))
+            {
+                originalPosition = transform.position;
+                isDragging = true;
+                GetComponent<SpriteRenderer>().sortingOrder = 10; // Bring piece to front
+            }
         }
     }
-}
 
     private void OnMouseDrag()
     {
@@ -57,175 +56,184 @@ public class ChessPieceMovement : MonoBehaviour
         isDragging = false;
         GetComponent<SpriteRenderer>().sortingOrder = 1;
 
+        Vector2Int originalCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(originalPosition));
+        Vector2Int targetCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(transform.position));
+
+        Debug.Log($"Trying to move from {originalCoord} to {targetCoord}");
 
         if (IsValidMove())
         {
-            // Check if there is an opponent or same-color piece at the target position
             Collider2D[] colliders = Physics2D.OverlapPointAll(transform.position);
             foreach (Collider2D collider in colliders)
             {
                 GameObject otherPiece = collider.gameObject;
                 if (otherPiece != this.gameObject)
                 {
-                    // Capture opponent piece
                     if ((tag.StartsWith("White") && otherPiece.tag.StartsWith("Black")) ||
                         (tag.StartsWith("Black") && otherPiece.tag.StartsWith("White")))
                     {
                         Destroy(otherPiece);
                         break;
                     }
-                    // Prevent move if the square is occupied by a piece of the same color
                     else if ((tag.StartsWith("White") && otherPiece.tag.StartsWith("White")) ||
                              (tag.StartsWith("Black") && otherPiece.tag.StartsWith("Black")))
                     {
-                        transform.position = originalPosition; // Return to original position
+                        transform.position = originalPosition;
                         return;
                     }
                 }
             }
-
             SnapToGrid();
             gameManager.SwitchTurn();
         }
         else
         {
-            transform.position = originalPosition; // Return to original position if the move is invalid
+            transform.position = originalPosition;
         }
     }
 }
 
-    private void SnapToGrid()
+private string GetSquareNameFromPosition(Vector3 position)
 {
-    // Adjust these values based on your board setup
-    float squareSize = 1.0f;  // Ensure this is the size of each square on your board
-    float offsetX = -3.5f;     // Adjust to align the grid with the board
-    float offsetY = -3.5f;     // Adjust to align the grid with the board
-
-    // Calculate the snapped position using Mathf.Round to ensure exact rounding
-    float snappedX = Mathf.Round((transform.position.x - offsetX) / squareSize) * squareSize + offsetX;
-    float snappedY = Mathf.Round((transform.position.y - offsetY) / squareSize) * squareSize + offsetY;
-
-    // Add a small adjustment to help with snapping if the piece is close to the desired position
-    if (Mathf.Abs(transform.position.x - snappedX) < 0.2f) // 0.2 is a tolerance value you can adjust
-    {
-        transform.position = new Vector3(snappedX, transform.position.y, 0);
-    }
-    if (Mathf.Abs(transform.position.y - snappedY) < 0.2f) // 0.2 is a tolerance value you can adjust
-    {
-        transform.position = new Vector3(transform.position.x, snappedY, 0);
-    }
+    Vector2Int approxCoord = new Vector2Int(Mathf.RoundToInt(position.x + 3.5f), Mathf.RoundToInt(position.y + 3.5f));
+    string squareName = boardManager.GetSquareName(approxCoord);
+    Debug.Log($"Position {position} corresponds to square {squareName}");
+    return squareName;
 }
 
 
+    private void SnapToGrid()
+    {
+        float squareSize = 1.0f;
+        float offsetX = -3.5f;
+        float offsetY = -3.5f;
+
+        float snappedX = Mathf.Round((transform.position.x - offsetX) / squareSize) * squareSize + offsetX;
+        float snappedY = Mathf.Round((transform.position.y - offsetY) / squareSize) * squareSize + offsetY;
+
+        transform.position = new Vector3(snappedX, snappedY, 0);
+    }
+    
     private bool IsValidMove()
 {
     float deltaX = Mathf.Abs(transform.position.x - originalPosition.x);
-    float deltaY = Mathf.Abs(transform.position.y - originalPosition.y);
-    float tolerance = 0.1f; // Use a small tolerance to handle floating-point precision issues
+    float deltaY = transform.position.y - originalPosition.y; // Keep deltaY signed for direction
+    float tolerance = 0.1f;
 
-    // Pawn Movement Logic
-
-    
     if (tag.Contains("Pawn"))
     {
-        if (tag.StartsWith("White"))
-        {
-            // White Pawns: Allow moving forward one or two squares from the starting position
-            if (Mathf.Abs(deltaX) < tolerance)
-            {
-                // Check for one-step move
-                if (Mathf.Abs(transform.position.y - originalPosition.y - 1.0f) < tolerance)
-                {
-                    return true;
-                }
+        return ValidatePawnMove(deltaX, deltaY, tolerance);
+    }
+    else if (tag.Contains("Rook"))
+    {
+        return deltaX < tolerance || Mathf.Abs(deltaY) < tolerance;
+    }
+    else if (tag.Contains("Knight"))
+    {
+        return (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(deltaY - 2.0f) < tolerance) || 
+               (Mathf.Abs(deltaX - 2.0f) < tolerance && Mathf.Abs(deltaY - 1.0f) < tolerance);
+    }
+    else if (tag.Contains("Bishop"))
+    {
+        return Mathf.Abs(deltaX - Mathf.Abs(deltaY)) < tolerance;
+    }
+    else if (tag.Contains("Queen"))
+    {
+        return deltaX < tolerance || Mathf.Abs(deltaY) < tolerance || Mathf.Abs(deltaX - Mathf.Abs(deltaY)) < tolerance;
+    }
+    else if (tag.Contains("King"))
+    {
+        return ValidateKingMove(deltaX, deltaY, tolerance);
+    }
 
-                // Check for two-step move from the starting position (row 1)
-                if (originalPosition.y == 1.0f && Mathf.Abs(transform.position.y - originalPosition.y - 2.0f) < tolerance)
-                {
-                    return true;
-                }
-            }
-            // Check for diagonal captures
-            if (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(transform.position.y - originalPosition.y - 1.0f) < tolerance)
+    return false;
+}
+
+    private bool ValidatePawnMove(float deltaX, float deltaY, float tolerance)
+{
+    if (tag.StartsWith("White"))
+    {
+        // White pawn moving forward (upwards on the board)
+        if (deltaX < tolerance)
+        {
+            // Single step forward
+            if (Mathf.Abs(deltaY - 1.0f) < tolerance)
             {
-                // Check if there is an opponent piece diagonally
-                Collider2D[] colliders = Physics2D.OverlapPointAll(transform.position);
-                foreach (Collider2D collider in colliders)
-                {
-                    if (collider.gameObject != this.gameObject && collider.gameObject.tag.StartsWith("Black"))
-                    {
-                        return true;
-                    }
-                }
+                return true;
+            }
+            // Double step forward if on starting row
+            if (originalPosition.y == 1.0f && Mathf.Abs(deltaY - 2.0f) < tolerance && !hasMoved)
+            {
+                return true;
             }
         }
-        else if (tag.StartsWith("Black"))
+        // Diagonal capture (one step diagonally forward)
+        if (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(deltaY - 1.0f) < tolerance)
         {
-            // Black Pawns: Allow moving forward one or two squares from the starting position
-            if (Mathf.Abs(deltaX) < tolerance)
+            return CheckForOpponentPiece() || CheckEnPassant();
+        }
+    }
+    else if (tag.StartsWith("Black"))
+    {
+        // Black pawn moving forward (downwards on the board)
+        if (deltaX < tolerance)
+        {
+            // Single step forward
+            if (Mathf.Abs(deltaY + 1.0f) < tolerance)
             {
-                // Check for one-step move
-                if (Mathf.Abs(originalPosition.y - transform.position.y - 1.0f) < tolerance)
-                {
-                    return true;
-                }
-
-                // Check for two-step move from the starting position (row 6)
-                if (originalPosition.y == 6.0f && Mathf.Abs(originalPosition.y - transform.position.y - 2.0f) < tolerance)
-                {
-                    return true;
-                }
+                return true;
             }
-            // Check for diagonal captures
-            if (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(originalPosition.y - transform.position.y - 1.0f) < tolerance)
+            // Double step forward if on starting row
+            if (originalPosition.y == 6.0f && Mathf.Abs(deltaY + 2.0f) < tolerance && !hasMoved)
             {
-                // Check if there is an opponent piece diagonally
-                Collider2D[] colliders = Physics2D.OverlapPointAll(transform.position);
-                foreach (Collider2D collider in colliders)
-                {
-                    if (collider.gameObject != this.gameObject && collider.gameObject.tag.StartsWith("White"))
-                    {
-                        return true;
-                    }
-                }
+                return true;
+            }
+        }
+        // Diagonal capture (one step diagonally forward)
+        if (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(deltaY + 1.0f) < tolerance)
+        {
+            return CheckForOpponentPiece() || CheckEnPassant();
+        }
+    }
+    return false;
+}
+
+    private bool CheckEnPassant()
+    {
+        // Logic to check for en passant conditions, possibly by querying the GameManager
+        // Example: return gameManager.IsEnPassantPossible(this);
+        return false;
+    }
+
+    private bool ValidateKingMove(float deltaX, float deltaY, float tolerance)
+    {
+        if (deltaX <= 1 + tolerance && Mathf.Abs(deltaY) <= 1 + tolerance)
+        {
+            return true;
+        }
+        if (deltaX == 2 && deltaY == 0)
+        {
+        Debug.Log("Attempting castling move");
+        // Additional logic to validate castling conditions here
+        return true; // Only for testing; add real castling checks later
+        }
+            
+        return false;
+    }
+    private bool CheckForOpponentPiece()
+    {
+        Collider2D[] colliders = Physics2D.OverlapPointAll(transform.position);
+        foreach (Collider2D collider in colliders)
+        {
+            if (collider.gameObject != this.gameObject && 
+                ((tag.StartsWith("White") && collider.gameObject.tag.StartsWith("Black")) ||
+                (tag.StartsWith("Black") && collider.gameObject.tag.StartsWith("White"))))
+            {
+                return true;
             }
         }
         return false;
     }
 
 
-    // Rook Movement Logic
-    if (tag.Contains("Rook"))
-    {
-        return Mathf.Abs(deltaX) < tolerance || Mathf.Abs(deltaY) < tolerance;
-    }
-
-    // Knight Movement Logic
-    if (tag.Contains("Knight"))
-    {
-        return (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(deltaY - 2.0f) < tolerance) || 
-               (Mathf.Abs(deltaX - 2.0f) < tolerance && Mathf.Abs(deltaY - 1.0f) < tolerance);
-    }
-
-    // Bishop Movement Logic
-    if (tag.Contains("Bishop"))
-    {
-        return Mathf.Abs(deltaX - deltaY) < tolerance;
-    }
-
-    // Queen Movement Logic
-    if (tag.Contains("Queen"))
-    {
-        return (Mathf.Abs(deltaX) < tolerance || Mathf.Abs(deltaY) < tolerance) || 
-               Mathf.Abs(deltaX - deltaY) < tolerance;
-    }
-
-    // King Movement Logic
-    if (tag.Contains("King"))
-    {
-        return deltaX <= 1 + tolerance && deltaY <= 1 + tolerance;
-    }
-
-    return false;
-}
 }

@@ -109,11 +109,11 @@ public class BoardManager : MonoBehaviour
     // Optional: Get the square name by coordinates (e.g., from (0,0) to "A1")
     public string GetSquareName(Vector2Int coordinates)
     {
-        foreach (var kvp in boardCoordinates)
+        foreach (var square in boardCoordinates)
         {
-            if (kvp.Value == coordinates)
+            if (square.Value == coordinates)
             {
-                return kvp.Key;
+                return square.Key;
             }
         }
         Debug.LogError($"Coordinates {coordinates} do not match any square!");
