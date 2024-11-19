@@ -7,8 +7,9 @@ public class ChessPieceMovement : MonoBehaviour
     private GameManager gameManager;
     private BoardManager boardManager;
 
-    // Flags for special moves
-    private bool hasMoved = false;
+    public bool hasMoved = false;
+
+    public Vector2Int boardPosition;
 
     private void Start()
     {
@@ -23,18 +24,25 @@ public class ChessPieceMovement : MonoBehaviour
         {
             Debug.LogError("BoardManager not found in the scene!");
         }
+
+        boardPosition = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(transform.position));
+    }
+
+    public Vector2Int GetBoardPosition()
+    {
+        return boardPosition;
     }
 
     private void OnMouseDown()
     {
         if (gameManager != null)
         {
-            if ((gameManager.IsWhiteTurn() && tag.StartsWith("White")) || 
+            if ((gameManager.IsWhiteTurn() && tag.StartsWith("White")) ||
                 (!gameManager.IsWhiteTurn() && tag.StartsWith("Black")))
             {
                 originalPosition = transform.position;
                 isDragging = true;
-                GetComponent<SpriteRenderer>().sortingOrder = 10; // Bring piece to front
+                GetComponent<SpriteRenderer>().sortingOrder = 10;
             }
         }
     }
@@ -61,43 +69,84 @@ public class ChessPieceMovement : MonoBehaviour
 
         Debug.Log($"Trying to move from {originalCoord} to {targetCoord}");
 
-        if (IsValidMove())
+        if (IsValidMove(originalCoord, targetCoord))
         {
-            Collider2D[] colliders = Physics2D.OverlapPointAll(transform.position);
-            foreach (Collider2D collider in colliders)
+            GameObject targetPiece = gameManager.GetPieceAtPosition(targetCoord);
+            if (targetPiece != null && targetPiece != this.gameObject)
             {
-                GameObject otherPiece = collider.gameObject;
-                if (otherPiece != this.gameObject)
+                if ((tag.StartsWith("White") && targetPiece.tag.StartsWith("Black")) ||
+                    (tag.StartsWith("Black") && targetPiece.tag.StartsWith("White")))
                 {
-                    if ((tag.StartsWith("White") && otherPiece.tag.StartsWith("Black")) ||
-                        (tag.StartsWith("Black") && otherPiece.tag.StartsWith("White")))
-                    {
-                        Destroy(otherPiece);
-                        break;
-                    }
-                    else if ((tag.StartsWith("White") && otherPiece.tag.StartsWith("White")) ||
-                             (tag.StartsWith("Black") && otherPiece.tag.StartsWith("Black")))
-                    {
-                        transform.position = originalPosition;
-                        return;
-                    }
+                    Destroy(targetPiece);
+                }
+                else
+                {
+                    transform.position = originalPosition;
+                    return;
                 }
             }
+
+            gameManager.UpdateBoardPosition(this.gameObject, originalCoord, targetCoord);
+            boardPosition = targetCoord;
+
+            hasMoved = true;
+
+            if (tag.Contains("King"))
+            {
+                if (tag.StartsWith("White"))
+                    gameManager.whiteKingMoved = true;
+                else
+                    gameManager.blackKingMoved = true;
+            }
+            else if (tag.Contains("Rook"))
+            {
+                if (tag.StartsWith("White"))
+                {
+                    if (originalCoord.x == 0 && originalCoord.y == 0)
+                        gameManager.whiteRookQueenSideMoved = true;
+                    else if (originalCoord.x == 7 && originalCoord.y == 0)
+                        gameManager.whiteRookKingSideMoved = true;
+                }
+                else
+                {
+                    if (originalCoord.x == 0 && originalCoord.y == 7)
+                        gameManager.blackRookQueenSideMoved = true;
+                    else if (originalCoord.x == 7 && originalCoord.y == 7)
+                        gameManager.blackRookKingSideMoved = true;
+                }
+            }
+
             SnapToGrid();
             gameManager.SwitchTurn();
         }
         else
         {
             transform.position = originalPosition;
+            // Optionally, provide feedback to the player here
+            Debug.Log("Invalid move. Try again.");
         }
     }
 }
 
-private string GetSquareNameFromPosition(Vector3 position)
+    private string GetSquareNameFromPosition(Vector3 position)
 {
-    Vector2Int approxCoord = new Vector2Int(Mathf.RoundToInt(position.x + 3.5f), Mathf.RoundToInt(position.y + 3.5f));
+    float squareSize = 1.0f; // Size of each square on the board
+    float offsetX = -3.5f; // Adjust based on your board's leftmost position
+    float offsetY = -3.5f; // Adjust based on your board's bottom position
+
+    int x = Mathf.RoundToInt((position.x - offsetX) / squareSize);
+    int y = Mathf.RoundToInt((position.y - offsetY) / squareSize);
+    Vector2Int approxCoord = new Vector2Int(x, y);
+
     string squareName = boardManager.GetSquareName(approxCoord);
-    Debug.Log($"Position {position} corresponds to square {squareName}");
+    if (squareName != null)
+    {
+        Debug.Log($"Position {position} corresponds to square {squareName}");
+    }
+    else
+    {
+        Debug.LogError($"Position {position} corresponds to invalid coordinate {approxCoord}");
+    }
     return squareName;
 }
 
@@ -113,127 +162,372 @@ private string GetSquareNameFromPosition(Vector3 position)
 
         transform.position = new Vector3(snappedX, snappedY, 0);
     }
-    
-    private bool IsValidMove()
-{
-    float deltaX = Mathf.Abs(transform.position.x - originalPosition.x);
-    float deltaY = transform.position.y - originalPosition.y; // Keep deltaY signed for direction
-    float tolerance = 0.1f;
 
-    if (tag.Contains("Pawn"))
+    private bool IsValidMove(Vector2Int from, Vector2Int to)
     {
-        return ValidatePawnMove(deltaX, deltaY, tolerance);
-    }
-    else if (tag.Contains("Rook"))
-    {
-        return deltaX < tolerance || Mathf.Abs(deltaY) < tolerance;
-    }
-    else if (tag.Contains("Knight"))
-    {
-        return (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(deltaY - 2.0f) < tolerance) || 
-               (Mathf.Abs(deltaX - 2.0f) < tolerance && Mathf.Abs(deltaY - 1.0f) < tolerance);
-    }
-    else if (tag.Contains("Bishop"))
-    {
-        return Mathf.Abs(deltaX - Mathf.Abs(deltaY)) < tolerance;
-    }
-    else if (tag.Contains("Queen"))
-    {
-        return deltaX < tolerance || Mathf.Abs(deltaY) < tolerance || Mathf.Abs(deltaX - Mathf.Abs(deltaY)) < tolerance;
-    }
-    else if (tag.Contains("King"))
-    {
-        return ValidateKingMove(deltaX, deltaY, tolerance);
-    }
+        bool valid = false;
 
-    return false;
-}
-
-    private bool ValidatePawnMove(float deltaX, float deltaY, float tolerance)
-{
-    if (tag.StartsWith("White"))
-    {
-        // White pawn moving forward (upwards on the board)
-        if (deltaX < tolerance)
+        if (tag.Contains("Pawn"))
         {
-            // Single step forward
-            if (Mathf.Abs(deltaY - 1.0f) < tolerance)
+            valid = ValidatePawnMove(from, to);
+        }
+        else if (tag.Contains("Rook"))
+        {
+            valid = ValidateRookMove(from, to);
+        }
+        else if (tag.Contains("Knight"))
+        {
+            valid = ValidateKnightMove(from, to);
+        }
+        else if (tag.Contains("Bishop"))
+        {
+            valid = ValidateBishopMove(from, to);
+        }
+        else if (tag.Contains("Queen"))
+        {
+            valid = ValidateQueenMove(from, to);
+        }
+        else if (tag.Contains("King"))
+        {
+            valid = ValidateKingMove(from, to);
+        }
+
+        if (!valid)
+            return false;
+
+        GameObject originalTargetPiece = gameManager.GetPieceAtPosition(to);
+        Vector2Int originalPosition = boardPosition;
+
+        gameManager.board[from.x, from.y] = null;
+        gameManager.board[to.x, to.y] = this.gameObject;
+        boardPosition = to;
+
+        if (originalTargetPiece != null)
+        {
+            gameManager.board[to.x, to.y] = null;
+        }
+
+        bool kingInCheck = IsKingInCheck(tag.StartsWith("White"));
+
+        gameManager.board[from.x, from.y] = this.gameObject;
+        gameManager.board[to.x, to.y] = originalTargetPiece;
+        boardPosition = originalPosition;
+
+        if (kingInCheck)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidatePawnMove(Vector2Int from, Vector2Int to)
+    {
+        int direction = (tag.StartsWith("White")) ? 1 : -1;
+
+        if (from.x == to.x)
+        {
+            if (to.y - from.y == direction && gameManager.GetPieceAtPosition(to) == null)
             {
                 return true;
             }
-            // Double step forward if on starting row
-            if (originalPosition.y == 1.0f && Mathf.Abs(deltaY - 2.0f) < tolerance && !hasMoved)
+            if (!hasMoved && to.y - from.y == 2 * direction && gameManager.GetPieceAtPosition(to) == null)
+            {
+                Vector2Int intermediatePos = new Vector2Int(from.x, from.y + direction);
+                if (gameManager.GetPieceAtPosition(intermediatePos) == null)
+                {
+                    return true;
+                }
+            }
+        }
+        if (Mathf.Abs(to.x - from.x) == 1 && to.y - from.y == direction)
+        {
+            GameObject targetPiece = gameManager.GetPieceAtPosition(to);
+            if (targetPiece != null && targetPiece.tag.StartsWith(tag.StartsWith("White") ? "Black" : "White"))
+            {
+                return true;
+            }
+            else if (CheckEnPassant(from, to))
             {
                 return true;
             }
         }
-        // Diagonal capture (one step diagonally forward)
-        if (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(deltaY - 1.0f) < tolerance)
-        {
-            return CheckForOpponentPiece() || CheckEnPassant();
-        }
-    }
-    else if (tag.StartsWith("Black"))
-    {
-        // Black pawn moving forward (downwards on the board)
-        if (deltaX < tolerance)
-        {
-            // Single step forward
-            if (Mathf.Abs(deltaY + 1.0f) < tolerance)
-            {
-                return true;
-            }
-            // Double step forward if on starting row
-            if (originalPosition.y == 6.0f && Mathf.Abs(deltaY + 2.0f) < tolerance && !hasMoved)
-            {
-                return true;
-            }
-        }
-        // Diagonal capture (one step diagonally forward)
-        if (Mathf.Abs(deltaX - 1.0f) < tolerance && Mathf.Abs(deltaY + 1.0f) < tolerance)
-        {
-            return CheckForOpponentPiece() || CheckEnPassant();
-        }
-    }
-    return false;
-}
 
-    private bool CheckEnPassant()
-    {
-        // Logic to check for en passant conditions, possibly by querying the GameManager
-        // Example: return gameManager.IsEnPassantPossible(this);
         return false;
     }
 
-    private bool ValidateKingMove(float deltaX, float deltaY, float tolerance)
+    private bool CheckEnPassant(Vector2Int from, Vector2Int to)
     {
-        if (deltaX <= 1 + tolerance && Mathf.Abs(deltaY) <= 1 + tolerance)
+        if (gameManager.lastMovedPiece == null)
+            return false;
+
+        ChessPieceMovement lastMovedPieceScript = gameManager.lastMovedPiece.GetComponent<ChessPieceMovement>();
+        if (lastMovedPieceScript == null)
+            return false;
+
+        if (!gameManager.lastMovedPiece.tag.Contains("Pawn"))
+            return false;
+
+        int lastMoveDistance = Mathf.Abs(gameManager.lastMoveTo.y - gameManager.lastMoveFrom.y);
+        if (lastMoveDistance != 2)
+            return false;
+
+        if (gameManager.lastMoveTo.y != from.y)
+            return false;
+
+        if (Mathf.Abs(gameManager.lastMoveTo.x - from.x) != 1)
+            return false;
+
+        Vector2Int enPassantCapturePos = new Vector2Int(gameManager.lastMoveTo.x, from.y + (tag.StartsWith("White") ? 1 : -1));
+
+        if (to == enPassantCapturePos)
+        {
+            Destroy(gameManager.lastMovedPiece);
+            gameManager.board[gameManager.lastMoveTo.x, gameManager.lastMoveTo.y] = null;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool ValidateRookMove(Vector2Int from, Vector2Int to)
+    {
+        if (from.x == to.x)
+        {
+            int direction = (to.y > from.y) ? 1 : -1;
+            for (int y = from.y + direction; y != to.y; y += direction)
+            {
+                if (gameManager.GetPieceAtPosition(new Vector2Int(from.x, y)) != null)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        else if (from.y == to.y)
+        {
+            int direction = (to.x > from.x) ? 1 : -1;
+            for (int x = from.x + direction; x != to.x; x += direction)
+            {
+                if (gameManager.GetPieceAtPosition(new Vector2Int(x, from.y)) != null)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool ValidateKnightMove(Vector2Int from, Vector2Int to)
+    {
+        int dx = Mathf.Abs(to.x - from.x);
+        int dy = Mathf.Abs(to.y - from.y);
+
+        if ((dx == 1 && dy == 2) || (dx == 2 && dy == 1))
         {
             return true;
         }
-        if (deltaX == 2 && deltaY == 0)
-        {
-        Debug.Log("Attempting castling move");
-        // Additional logic to validate castling conditions here
-        return true; // Only for testing; add real castling checks later
-        }
-            
+
         return false;
     }
-    private bool CheckForOpponentPiece()
+
+    private bool ValidateBishopMove(Vector2Int from, Vector2Int to)
     {
-        Collider2D[] colliders = Physics2D.OverlapPointAll(transform.position);
-        foreach (Collider2D collider in colliders)
+        int dx = Mathf.Abs(to.x - from.x);
+        int dy = Mathf.Abs(to.y - from.y);
+
+        if (dx == dy)
         {
-            if (collider.gameObject != this.gameObject && 
-                ((tag.StartsWith("White") && collider.gameObject.tag.StartsWith("Black")) ||
-                (tag.StartsWith("Black") && collider.gameObject.tag.StartsWith("White"))))
+            int xDirection = (to.x > from.x) ? 1 : -1;
+            int yDirection = (to.y > from.y) ? 1 : -1;
+
+            for (int i = 1; i < dx; i++)
+            {
+                if (gameManager.GetPieceAtPosition(new Vector2Int(from.x + i * xDirection, from.y + i * yDirection)) != null)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool ValidateQueenMove(Vector2Int from, Vector2Int to)
+    {
+        return ValidateRookMove(from, to) || ValidateBishopMove(from, to);
+    }
+
+    private bool ValidateKingMove(Vector2Int from, Vector2Int to)
+    {
+        int dx = Mathf.Abs(to.x - from.x);
+        int dy = Mathf.Abs(to.y - from.y);
+
+        if (dx <= 1 && dy <= 1)
+        {
+            return true;
+        }
+        else if (!hasMoved && dx == 2 && dy == 0)
+        {
+            return CheckCastling(from, to);
+        }
+
+        return false;
+    }
+
+    private bool CheckCastling(Vector2Int from, Vector2Int to)
+    {
+        int direction = (to.x - from.x > 0) ? 1 : -1;
+
+        if ((tag.StartsWith("White") && gameManager.whiteKingMoved) ||
+            (tag.StartsWith("Black") && gameManager.blackKingMoved))
+            return false;
+
+        Vector2Int rookPosition = new Vector2Int((direction > 0) ? 7 : 0, from.y);
+        GameObject rookObject = gameManager.GetPieceAtPosition(rookPosition);
+
+        if (rookObject == null)
+            return false;
+
+        ChessPieceMovement rookScript = rookObject.GetComponent<ChessPieceMovement>();
+        if (rookScript == null || !rookObject.tag.Contains("Rook") || rookScript.hasMoved)
+            return false;
+
+        if ((tag.StartsWith("White") && direction > 0 && gameManager.whiteRookKingSideMoved) ||
+            (tag.StartsWith("White") && direction < 0 && gameManager.whiteRookQueenSideMoved) ||
+            (tag.StartsWith("Black") && direction > 0 && gameManager.blackRookKingSideMoved) ||
+            (tag.StartsWith("Black") && direction < 0 && gameManager.blackRookQueenSideMoved))
+            return false;
+
+        int start = Mathf.Min(from.x, rookPosition.x) + 1;
+        int end = Mathf.Max(from.x, rookPosition.x) - 1;
+
+        for (int x = start; x <= end; x++)
+        {
+            if (gameManager.GetPieceAtPosition(new Vector2Int(x, from.y)) != null)
+                return false;
+        }
+
+        if (IsSquareUnderAttack(from, tag.StartsWith("White") ? "Black" : "White"))
+            return false;
+
+        Vector2Int passThroughSquare = new Vector2Int(from.x + direction, from.y);
+        if (IsSquareUnderAttack(passThroughSquare, tag.StartsWith("White") ? "Black" : "White"))
+            return false;
+
+        if (IsSquareUnderAttack(to, tag.StartsWith("White") ? "Black" : "White"))
+            return false;
+
+        Vector2Int rookNewPosition = new Vector2Int(from.x + direction, from.y);
+        rookObject.transform.position = boardManager.GetSquareWorldPosition(rookNewPosition);
+        gameManager.UpdateBoardPosition(rookObject, rookPosition, rookNewPosition);
+        rookScript.boardPosition = rookNewPosition;
+        rookScript.hasMoved = true;
+
+        if (tag.StartsWith("White"))
+        {
+            if (direction > 0)
+                gameManager.whiteRookKingSideMoved = true;
+            else
+                gameManager.whiteRookQueenSideMoved = true;
+        }
+        else
+        {
+            if (direction > 0)
+                gameManager.blackRookKingSideMoved = true;
+            else
+                gameManager.blackRookQueenSideMoved = true;
+        }
+
+        return true;
+    }
+
+    private bool IsKingInCheck(bool isWhite)
+    {
+        Vector2Int kingPosition = new Vector2Int(-1, -1);
+        foreach (GameObject pieceObject in gameManager.board)
+        {
+            if (pieceObject != null && pieceObject.tag == (isWhite ? "WhiteKing" : "BlackKing"))
+            {
+                ChessPieceMovement kingScript = pieceObject.GetComponent<ChessPieceMovement>();
+                kingPosition = kingScript.boardPosition;
+                break;
+            }
+        }
+
+        if (kingPosition.x == -1)
+        {
+            Debug.LogError("King not found on the board!");
+            return false;
+        }
+
+        string opponentTagPrefix = isWhite ? "Black" : "White";
+
+        return IsSquareUnderAttack(kingPosition, opponentTagPrefix);
+    }
+
+    private bool IsSquareUnderAttack(Vector2Int square, string opponentTagPrefix)
+    {
+        foreach (GameObject pieceObject in gameManager.board)
+        {
+            if (pieceObject != null && pieceObject.tag.StartsWith(opponentTagPrefix))
+            {
+                ChessPieceMovement pieceScript = pieceObject.GetComponent<ChessPieceMovement>();
+                if (pieceScript != null)
+                {
+                    if (pieceScript.CanAttackSquare(square))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public bool CanAttackSquare(Vector2Int square)
+    {
+        Vector2Int from = boardPosition;
+        Vector2Int to = square;
+
+        if (tag.Contains("Pawn"))
+        {
+            int direction = (tag.StartsWith("White")) ? 1 : -1;
+            if (Mathf.Abs(to.x - from.x) == 1 && to.y - from.y == direction)
             {
                 return true;
             }
         }
+        else if (tag.Contains("Rook"))
+        {
+            return ValidateRookMove(from, to);
+        }
+        else if (tag.Contains("Knight"))
+        {
+            return ValidateKnightMove(from, to);
+        }
+        else if (tag.Contains("Bishop"))
+        {
+            return ValidateBishopMove(from, to);
+        }
+        else if (tag.Contains("Queen"))
+        {
+            return ValidateQueenMove(from, to);
+        }
+        else if (tag.Contains("King"))
+        {
+            int dx = Mathf.Abs(to.x - from.x);
+            int dy = Mathf.Abs(to.y - from.y);
+            if (dx <= 1 && dy <= 1)
+            {
+                return true;
+            }
+        }
+
         return false;
     }
-
-
 }

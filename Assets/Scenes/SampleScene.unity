@@ -485,6 +485,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &16524099
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -560,6 +562,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   isWhiteTurn: 1
+  whiteKingMoved: 0
+  whiteRookKingSideMoved: 0
+  whiteRookQueenSideMoved: 0
+  blackKingMoved: 0
+  blackRookKingSideMoved: 0
+  blackRookQueenSideMoved: 0
+  lastMovedPiece: {fileID: 0}
+  lastMoveFrom: {x: 0, y: 0}
+  lastMoveTo: {x: 0, y: 0}
 --- !u!4 &45592293
 Transform:
   m_ObjectHideFlags: 0
@@ -589,7 +600,7 @@ GameObject:
   - component: {fileID: 50901966}
   m_Layer: 0
   m_Name: BlackPawn1
-  m_TagString: BlackPawn
+  m_TagString: BlackPawn1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -673,6 +684,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &50901966
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -820,7 +833,7 @@ GameObject:
   - component: {fileID: 167962860}
   m_Layer: 0
   m_Name: BlackKnight2
-  m_TagString: BlackKnight
+  m_TagString: BlackKnight2
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -904,6 +917,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &167962860
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1160,10 +1175,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 2033478880}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -2.5, y: -3.5}
-  m_SizeDelta: {x: -7, y: -7}
+  m_SizeDelta: {x: 1, y: 1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!212 &256328873
 SpriteRenderer:
@@ -1231,7 +1246,7 @@ GameObject:
   - component: {fileID: 280669171}
   m_Layer: 0
   m_Name: BlackPawn2
-  m_TagString: BlackPawn
+  m_TagString: BlackPawn2
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1315,6 +1330,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &280669171
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1374,7 +1391,7 @@ GameObject:
   - component: {fileID: 295837096}
   m_Layer: 0
   m_Name: WhitePawn2
-  m_TagString: WhitePawn
+  m_TagString: WhitePawn2
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1458,6 +1475,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &295837096
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1869,7 +1888,7 @@ GameObject:
   - component: {fileID: 361396367}
   m_Layer: 0
   m_Name: WhiteBishop1
-  m_TagString: WhiteBishop
+  m_TagString: WhiteBishop1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1953,6 +1972,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &361396367
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -2100,7 +2121,7 @@ GameObject:
   - component: {fileID: 380332946}
   m_Layer: 0
   m_Name: BlackPawn8
-  m_TagString: BlackPawn
+  m_TagString: BlackPawn8
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -2184,6 +2205,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &380332946
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -2243,7 +2266,7 @@ GameObject:
   - component: {fileID: 384821496}
   m_Layer: 0
   m_Name: WhitePawn8
-  m_TagString: WhitePawn
+  m_TagString: WhitePawn8
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -2327,6 +2350,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &384821496
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -2562,7 +2587,7 @@ GameObject:
   - component: {fileID: 393457820}
   m_Layer: 0
   m_Name: BlackPawn6
-  m_TagString: BlackPawn
+  m_TagString: BlackPawn6
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -2646,6 +2671,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &393457820
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -2969,7 +2996,7 @@ GameObject:
   - component: {fileID: 440872787}
   m_Layer: 0
   m_Name: BlackPawn3
-  m_TagString: BlackPawn
+  m_TagString: BlackPawn3
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3053,6 +3080,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &440872787
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -3376,7 +3405,7 @@ GameObject:
   - component: {fileID: 586890446}
   m_Layer: 0
   m_Name: WhitePawn5
-  m_TagString: WhitePawn
+  m_TagString: WhitePawn5
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3460,6 +3489,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &586890446
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -3519,7 +3550,7 @@ GameObject:
   - component: {fileID: 591508366}
   m_Layer: 0
   m_Name: WhitePawn7
-  m_TagString: WhitePawn
+  m_TagString: WhitePawn7
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3603,6 +3634,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &591508366
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -3973,7 +4006,7 @@ GameObject:
   - component: {fileID: 689738676}
   m_Layer: 0
   m_Name: BlackKnight1
-  m_TagString: BlackKnight
+  m_TagString: BlackKnight1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4057,6 +4090,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &689738676
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -4380,7 +4415,7 @@ GameObject:
   - component: {fileID: 720160773}
   m_Layer: 0
   m_Name: BlackBishop1
-  m_TagString: BlackBishop
+  m_TagString: BlackBishop1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4464,6 +4499,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &720160773
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -4787,7 +4824,7 @@ GameObject:
   - component: {fileID: 830931103}
   m_Layer: 0
   m_Name: BlackPawn4
-  m_TagString: BlackPawn
+  m_TagString: BlackPawn4
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4871,6 +4908,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &830931103
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -5282,7 +5321,7 @@ GameObject:
   - component: {fileID: 926162976}
   m_Layer: 0
   m_Name: BlackRook2
-  m_TagString: BlackRook
+  m_TagString: BlackRook2
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -5366,6 +5405,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &926162976
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -5685,6 +5726,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1059629277
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -6092,6 +6135,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1190415759
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -6415,7 +6460,7 @@ GameObject:
   - component: {fileID: 1262147629}
   m_Layer: 0
   m_Name: WhitePawn4
-  m_TagString: WhitePawn
+  m_TagString: WhitePawn4
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -6499,6 +6544,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1262147629
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -6998,7 +7045,7 @@ GameObject:
   - component: {fileID: 1498790239}
   m_Layer: 0
   m_Name: WhitePawn6
-  m_TagString: WhitePawn
+  m_TagString: WhitePawn6
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -7082,6 +7129,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1498790239
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -7317,7 +7366,7 @@ GameObject:
   - component: {fileID: 1551239425}
   m_Layer: 0
   m_Name: WhiteBishop2
-  m_TagString: WhiteBishop
+  m_TagString: WhiteBishop2
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -7401,6 +7450,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1551239425
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -7460,7 +7511,7 @@ GameObject:
   - component: {fileID: 1551819450}
   m_Layer: 0
   m_Name: BlackPawn7
-  m_TagString: BlackPawn
+  m_TagString: BlackPawn7
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -7544,6 +7595,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1551819450
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -7691,7 +7744,7 @@ GameObject:
   - component: {fileID: 1572364759}
   m_Layer: 0
   m_Name: WhiteKnight1
-  m_TagString: WhiteKnight
+  m_TagString: WhiteKnight1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -7775,6 +7828,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1572364759
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -8233,7 +8288,7 @@ GameObject:
   - component: {fileID: 1707732779}
   m_Layer: 0
   m_Name: WhitePawn3
-  m_TagString: WhitePawn
+  m_TagString: WhitePawn3
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -8317,6 +8372,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1707732779
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -8684,7 +8741,7 @@ GameObject:
   - component: {fileID: 1782873658}
   m_Layer: 0
   m_Name: WhitePawn1
-  m_TagString: WhitePawn
+  m_TagString: WhitePawn1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -8768,6 +8825,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1782873658
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -8827,7 +8886,7 @@ GameObject:
   - component: {fileID: 1814163370}
   m_Layer: 0
   m_Name: WhiteRook1
-  m_TagString: WhiteRook
+  m_TagString: WhiteRook1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -8911,6 +8970,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1814163370
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -9058,7 +9119,7 @@ GameObject:
   - component: {fileID: 1815916723}
   m_Layer: 0
   m_Name: BlackBishop2
-  m_TagString: BlackBishop
+  m_TagString: BlackBishop2
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -9142,6 +9203,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1815916723
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -9289,7 +9352,7 @@ GameObject:
   - component: {fileID: 1921629921}
   m_Layer: 0
   m_Name: WhiteRook2
-  m_TagString: WhiteRook
+  m_TagString: WhiteRook2
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -9373,6 +9436,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1921629921
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -9516,6 +9581,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1942538853
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -9663,7 +9730,7 @@ GameObject:
   - component: {fileID: 1998723275}
   m_Layer: 0
   m_Name: WhiteKnight2
-  m_TagString: WhiteKnight
+  m_TagString: WhiteKnight2
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -9747,6 +9814,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &1998723275
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -10094,7 +10163,7 @@ GameObject:
   - component: {fileID: 2063115357}
   m_Layer: 0
   m_Name: BlackRook1
-  m_TagString: BlackRook
+  m_TagString: BlackRook1
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -10178,6 +10247,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &2063115357
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -10325,7 +10396,7 @@ GameObject:
   - component: {fileID: 2084434829}
   m_Layer: 0
   m_Name: BlackPawn5
-  m_TagString: BlackPawn
+  m_TagString: BlackPawn5
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -10409,6 +10480,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84f5e2a6ca485b6459f53bfee5d80fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hasMoved: 0
+  boardPosition: {x: 0, y: 0}
 --- !u!61 &2084434829
 BoxCollider2D:
   m_ObjectHideFlags: 0
