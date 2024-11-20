@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: FreezeCard
   m_EditorClassIdentifier: 
   cardName: Freeze
-  description: Sova
-  artwork: {fileID: 21300000, guid: d4f6b7f314e73c84fa839e1064b3a40c, type: 3}
+  description: Freeze's an opponents card
+  artwork: {fileID: 21300000, guid: 6fc847cb5eb5b2e4f8081e93cdf8bbdf, type: 3}
   rarity: 1
-  freezeDuration: 2
+  freezeDuration: 3

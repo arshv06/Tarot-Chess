@@ -48,6 +48,18 @@ public class BoardManager : MonoBehaviour
         return null;
     }
 
+    public string GetSquareNameFromCoordinates(Vector2Int coord)
+{
+    if (coord.x < 0 || coord.x > 7 || coord.y < 0 || coord.y > 7)
+        return null;
+
+    char file = (char)('A' + coord.x); // Files from 'A' to 'H'
+    int rank = coord.y + 1; // Ranks from '1' to '8'
+
+    return $"{file}{rank}";
+}
+
+
     public bool IsSquareEmpty(string squareName)
     {
         Vector2Int coords = GetSquareCoordinates(squareName);

@@ -35,6 +35,9 @@ public class GameManager : MonoBehaviour
     public List<GameObject> whiteCapturedPieces = new List<GameObject>();
     public List<GameObject> blackCapturedPieces = new List<GameObject>();
 
+    // Move history
+    public List<string> moveHistory = new List<string>();
+
     private void Start()
     {
         boardManager = FindObjectOfType<BoardManager>();
@@ -45,17 +48,6 @@ public class GameManager : MonoBehaviour
 
         SetInitialPiecePositions();
         InitializeBoard();
-
-        // Uncomment the following lines to add test cards to the white player's hand
-        
-        /*
-        for (int i = 0; i < 2; i++)
-        {
-            Card testCard = ScriptableObject.CreateInstance<ReviveCard>();
-            testCard.cardName = "Revive";
-            whitePlayerHand.AddCard(testCard);
-        }
-        */
     }
 
     public void SetInitialPiecePositions()
@@ -262,131 +254,129 @@ public class GameManager : MonoBehaviour
 
     // Teleport card effect
     public IEnumerator TeleportPiece(bool isWhitePlayer, System.Action onEffectComplete)
-{
-    isCardEffectActive = true;
-
-    UIManager uiManager = FindObjectOfType<UIManager>();
-    uiManager.ShowMessage("Select a piece to teleport.");
-
-    // Wait for player to select a piece
-    ChessPieceMovement selectedPiece = null;
-    bool pieceSelected = false;
-
-    while (!pieceSelected)
     {
-        if (Input.GetMouseButtonDown(0))
-        {
-            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            Collider2D collider = Physics2D.OverlapPoint(mousePosition);
+        isCardEffectActive = true;
 
-            if (collider != null)
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        uiManager.ShowMessage("Select a piece to teleport.");
+
+        // Wait for player to select a piece
+        ChessPieceMovement selectedPiece = null;
+        bool pieceSelected = false;
+
+        while (!pieceSelected)
+        {
+            if (Input.GetMouseButtonDown(0))
             {
-                ChessPieceMovement piece = collider.GetComponent<ChessPieceMovement>();
-                if (piece != null && piece.tag.StartsWith(isWhitePlayer ? "White" : "Black"))
+                Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                Collider2D collider = Physics2D.OverlapPoint(mousePosition);
+
+                if (collider != null)
                 {
-                    selectedPiece = piece;
-                    pieceSelected = true;
+                    ChessPieceMovement piece = collider.GetComponent<ChessPieceMovement>();
+                    if (piece != null && piece.tag.StartsWith(isWhitePlayer ? "White" : "Black"))
+                    {
+                        selectedPiece = piece;
+                        pieceSelected = true;
+                    }
                 }
             }
+            yield return null;
         }
-        yield return null;
-    }
 
-    uiManager.ShowMessage("Select a destination square.");
+        uiManager.ShowMessage("Select a destination square.");
 
-    // Wait for player to select an empty square
-    Vector2Int targetCoord = new Vector2Int(-1, -1);
-    bool destinationSelected = false;
+        // Wait for player to select an empty square
+        Vector2Int targetCoord = new Vector2Int(-1, -1);
+        bool destinationSelected = false;
 
-    while (!destinationSelected)
-    {
-        if (Input.GetMouseButtonDown(0))
+        while (!destinationSelected)
         {
-            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            string squareName = boardManager.GetSquareNameFromPosition(mousePosition);
-            Vector2Int coord = boardManager.GetSquareCoordinates(squareName);
-
-            if (coord.x >= 0 && coord.y >= 0 && GetPieceAtPosition(coord) == null)
+            if (Input.GetMouseButtonDown(0))
             {
-                targetCoord = coord;
-                destinationSelected = true;
+                Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                string squareName = boardManager.GetSquareNameFromPosition(mousePosition);
+                Vector2Int coord = boardManager.GetSquareCoordinates(squareName);
+
+                if (coord.x >= 0 && coord.y >= 0 && GetPieceAtPosition(coord) == null)
+                {
+                    targetCoord = coord;
+                    destinationSelected = true;
+                }
             }
+            yield return null;
         }
-        yield return null;
-    }
 
-    // Move the selected piece to the target coordinate
-    Vector2Int originalCoord = selectedPiece.boardPosition;
-    UpdateBoardPosition(selectedPiece.gameObject, originalCoord, targetCoord);
-    selectedPiece.boardPosition = targetCoord;
-    selectedPiece.transform.position = boardManager.GetSquareWorldPosition(targetCoord);
+        // Move the selected piece to the target coordinate
+        Vector2Int originalCoord = selectedPiece.boardPosition;
+        UpdateBoardPosition(selectedPiece.gameObject, originalCoord, targetCoord);
+        selectedPiece.boardPosition = targetCoord;
+        selectedPiece.transform.position = boardManager.GetSquareWorldPosition(targetCoord);
 
-    uiManager.ClearMessage();
-    isCardEffectActive = false;
-
-    // Invoke the callback to indicate the effect is complete
-    onEffectComplete?.Invoke();
-}
-
-
-    // Revive piece card effect
-    public IEnumerator RevivePiece(bool isWhitePlayer, System.Action onEffectComplete)
-{
-    isCardEffectActive = true;
-
-    UIManager uiManager = FindObjectOfType<UIManager>();
-    List<GameObject> capturedPieces = isWhitePlayer ? whiteCapturedPieces : blackCapturedPieces;
-
-    if (capturedPieces.Count == 0)
-    {
-        uiManager.ShowMessage("No captured pieces to revive.");
-        yield return new WaitForSeconds(2);
         uiManager.ClearMessage();
         isCardEffectActive = false;
 
-        // Invoke the callback even if no piece was revived
+        // Invoke the callback to indicate the effect is complete
         onEffectComplete?.Invoke();
-        yield break;
     }
 
-    // Revive the last captured piece
-    GameObject pieceToRevive = capturedPieces[capturedPieces.Count - 1];
-    ChessPieceMovement pieceScript = pieceToRevive.GetComponent<ChessPieceMovement>();
-
-    // Check if the starting position is empty
-    if (GetPieceAtPosition(pieceScript.startingPosition) != null)
+    // Revive piece card effect
+    public IEnumerator RevivePiece(bool isWhitePlayer, System.Action onEffectComplete)
     {
-        uiManager.ShowMessage("Starting position is occupied. Cannot revive.");
+        isCardEffectActive = true;
+
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        List<GameObject> capturedPieces = isWhitePlayer ? whiteCapturedPieces : blackCapturedPieces;
+
+        if (capturedPieces.Count == 0)
+        {
+            uiManager.ShowMessage("No captured pieces to revive.");
+            yield return new WaitForSeconds(2);
+            uiManager.ClearMessage();
+            isCardEffectActive = false;
+
+            // Invoke the callback even if no piece was revived
+            onEffectComplete?.Invoke();
+            yield break;
+        }
+
+        // Revive the last captured piece
+        GameObject pieceToRevive = capturedPieces[capturedPieces.Count - 1];
+        ChessPieceMovement pieceScript = pieceToRevive.GetComponent<ChessPieceMovement>();
+
+        // Check if the starting position is empty
+        if (GetPieceAtPosition(pieceScript.startingPosition) != null)
+        {
+            uiManager.ShowMessage("Starting position is occupied. Cannot revive.");
+            yield return new WaitForSeconds(2);
+            uiManager.ClearMessage();
+            isCardEffectActive = false;
+
+            // Invoke the callback
+            onEffectComplete?.Invoke();
+            yield break;
+        }
+
+        // Place the piece back on the board
+        pieceScript.boardPosition = pieceScript.startingPosition;
+        pieceToRevive.transform.position = boardManager.GetSquareWorldPosition(pieceScript.startingPosition);
+        UpdateBoardPosition(pieceToRevive, new Vector2Int(-1, -1), pieceScript.startingPosition);
+
+        // Remove the piece from the captured list
+        capturedPieces.Remove(pieceToRevive);
+
+        // Reactivate the piece
+        pieceToRevive.SetActive(true);
+
+        uiManager.ShowMessage($"{pieceScript.tag} has been revived!");
         yield return new WaitForSeconds(2);
         uiManager.ClearMessage();
+
         isCardEffectActive = false;
 
         // Invoke the callback
         onEffectComplete?.Invoke();
-        yield break;
     }
-
-    // Place the piece back on the board
-    pieceScript.boardPosition = pieceScript.startingPosition;
-    pieceToRevive.transform.position = boardManager.GetSquareWorldPosition(pieceScript.startingPosition);
-    UpdateBoardPosition(pieceToRevive, new Vector2Int(-1, -1), pieceScript.startingPosition);
-
-    // Remove the piece from the captured list
-    capturedPieces.Remove(pieceToRevive);
-
-    // Reactivate the piece
-    pieceToRevive.SetActive(true);
-
-    uiManager.ShowMessage($"{pieceScript.tag} has been revived!");
-    yield return new WaitForSeconds(2);
-    uiManager.ClearMessage();
-
-    isCardEffectActive = false;
-
-    // Invoke the callback
-    onEffectComplete?.Invoke();
-}
-
 
     // Freeze piece card effect
     public IEnumerator FreezePiece(bool isWhitePlayer, int duration, System.Action onEffectComplete)
@@ -431,4 +421,77 @@ public class GameManager : MonoBehaviour
         onEffectComplete?.Invoke();
     }
 
+    // Move history methods
+
+    // Method to generate move notation
+    public string GenerateMoveNotation(ChessPieceMovement piece, Vector2Int from, Vector2Int to, bool isCapture)
+    {
+        string notation = "";
+
+        // Get piece notation (e.g., N for Knight, B for Bishop)
+        string pieceNotation = GetPieceNotation(piece);
+
+        // Determine if it's a capture
+        string captureNotation = isCapture ? "x" : "";
+
+        // Get the destination square name
+        string toSquare = boardManager.GetSquareNameFromCoordinates(to);
+
+        // Handle pawn moves
+        if (piece.tag.Contains("Pawn"))
+        {
+            if (isCapture)
+            {
+                // For pawn captures, include the file of the pawn's starting position
+                char fromFile = GetFileChar(from.x);
+                notation = $"{fromFile}x{toSquare}";
+            }
+            else
+            {
+                notation = toSquare;
+            }
+        }
+        else
+        {
+            notation = $"{pieceNotation}{captureNotation}{toSquare}";
+        }
+
+        // TODO: Add disambiguation, check, checkmate, castling, promotions if necessary
+
+        return notation;
+    }
+
+    // Method to add move to history and maintain last ten moves
+    public void AddMoveToHistory(string move)
+    {
+        moveHistory.Add(move);
+
+        // Keep only the last ten moves
+        if (moveHistory.Count > 10)
+        {
+            moveHistory.RemoveAt(0);
+        }
+
+        // Update the move history UI
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        uiManager.UpdateMoveHistory(moveHistory);
+    }
+
+    // Helper methods
+    private string GetPieceNotation(ChessPieceMovement piece)
+    {
+        if (piece.tag.Contains("Knight")) return "N";
+        if (piece.tag.Contains("Bishop")) return "B";
+        if (piece.tag.Contains("Rook")) return "R";
+        if (piece.tag.Contains("Queen")) return "Q";
+        if (piece.tag.Contains("King")) return "K";
+        // Pawns are represented by an empty string
+        return "";
+    }
+
+    private char GetFileChar(int x)
+    {
+        // Files are from 'a' to 'h' corresponding to x = 0 to 7
+        return (char)('a' + x);
+    }
 }

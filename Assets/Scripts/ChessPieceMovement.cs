@@ -78,90 +78,98 @@ public class ChessPieceMovement : MonoBehaviour
         frozenForTurns = turns;
     }
 
-     private void OnMouseUp()
+    private void OnMouseUp()
+{
+    if (isDragging && gameManager != null)
     {
-        if (isDragging && gameManager != null)
+        isDragging = false;
+        GetComponent<SpriteRenderer>().sortingOrder = 1;
+
+        Vector2Int originalCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(originalPosition));
+        Vector2Int targetCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(transform.position));
+
+        if (IsValidMove(originalCoord, targetCoord))
         {
-            isDragging = false;
-            GetComponent<SpriteRenderer>().sortingOrder = 1;
-
-            Vector2Int originalCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(originalPosition));
-            Vector2Int targetCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(transform.position));
-
-            if (IsValidMove(originalCoord, targetCoord))
+            bool isCapture = false;
+            GameObject targetPiece = gameManager.GetPieceAtPosition(targetCoord);
+            if (targetPiece != null && targetPiece != this.gameObject)
             {
-                GameObject targetPiece = gameManager.GetPieceAtPosition(targetCoord);
-                if (targetPiece != null && targetPiece != this.gameObject)
+                if ((tag.StartsWith("White") && targetPiece.tag.StartsWith("Black")) ||
+                    (tag.StartsWith("Black") && targetPiece.tag.StartsWith("White")))
                 {
-                    if ((tag.StartsWith("White") && targetPiece.tag.StartsWith("Black")) ||
-                        (tag.StartsWith("Black") && targetPiece.tag.StartsWith("White")))
-                    {
-                        // Award a card before capturing the piece
-                        gameManager.AwardCard(targetPiece.tag, tag.StartsWith("White"));
+                    isCapture = true;
 
-                        // Add the captured piece to the captured pieces list
-                        if (tag.StartsWith("White"))
-                        {
-                            gameManager.blackCapturedPieces.Add(targetPiece);
-                        }
-                        else
-                        {
-                            gameManager.whiteCapturedPieces.Add(targetPiece);
-                        }
+                    // Award a card before capturing the piece
+                    gameManager.AwardCard(targetPiece.tag, tag.StartsWith("White"));
 
-                        // Deactivate the captured piece instead of destroying it
-                        targetPiece.SetActive(false);
-                    }
-                    else
-                    {
-                        // Invalid capture (same color)
-                        transform.position = originalPosition;
-                        return;
-                    }
-                }
-
-                gameManager.UpdateBoardPosition(this.gameObject, originalCoord, targetCoord);
-                boardPosition = targetCoord;
-
-                hasMoved = true;
-
-                // Update movement flags for special moves
-                if (tag.Contains("King"))
-                {
-                    if (tag.StartsWith("White"))
-                        gameManager.whiteKingMoved = true;
-                    else
-                        gameManager.blackKingMoved = true;
-                }
-                else if (tag.Contains("Rook"))
-                {
+                    // Add the captured piece to the captured pieces list
                     if (tag.StartsWith("White"))
                     {
-                        if (originalCoord.x == 0 && originalCoord.y == 0)
-                            gameManager.whiteRookQueenSideMoved = true;
-                        else if (originalCoord.x == 7 && originalCoord.y == 0)
-                            gameManager.whiteRookKingSideMoved = true;
+                        gameManager.blackCapturedPieces.Add(targetPiece);
                     }
                     else
                     {
-                        if (originalCoord.x == 0 && originalCoord.y == 7)
-                            gameManager.blackRookQueenSideMoved = true;
-                        else if (originalCoord.x == 7 && originalCoord.y == 7)
-                            gameManager.blackRookKingSideMoved = true;
+                        gameManager.whiteCapturedPieces.Add(targetPiece);
                     }
-                }
 
-                SnapToGrid();
-                gameManager.SwitchTurn();
+                    // Deactivate the captured piece instead of destroying it
+                    targetPiece.SetActive(false);
+                }
+                else
+                {
+                    // Invalid capture (same color)
+                    transform.position = originalPosition;
+                    return;
+                }
             }
-            else
+
+            gameManager.UpdateBoardPosition(this.gameObject, originalCoord, targetCoord);
+            boardPosition = targetCoord;
+
+            hasMoved = true;
+
+            // Update movement flags for special moves
+            if (tag.Contains("King"))
             {
-                // Invalid move; reset position
-                transform.position = originalPosition;
-                Debug.Log("Invalid move. Try again.");
+                if (tag.StartsWith("White"))
+                    gameManager.whiteKingMoved = true;
+                else
+                    gameManager.blackKingMoved = true;
             }
+            else if (tag.Contains("Rook"))
+            {
+                if (tag.StartsWith("White"))
+                {
+                    if (originalCoord.x == 0 && originalCoord.y == 0)
+                        gameManager.whiteRookQueenSideMoved = true;
+                    else if (originalCoord.x == 7 && originalCoord.y == 0)
+                        gameManager.whiteRookKingSideMoved = true;
+                }
+                else
+                {
+                    if (originalCoord.x == 0 && originalCoord.y == 7)
+                        gameManager.blackRookQueenSideMoved = true;
+                    else if (originalCoord.x == 7 && originalCoord.y == 7)
+                        gameManager.blackRookKingSideMoved = true;
+                }
+            }
+
+            // Record the move
+            string moveNotation = gameManager.GenerateMoveNotation(this, originalCoord, targetCoord, isCapture);
+            gameManager.AddMoveToHistory(moveNotation);
+
+            SnapToGrid();
+            gameManager.SwitchTurn();
+        }
+        else
+        {
+            // Invalid move; reset position
+            transform.position = originalPosition;
+            Debug.Log("Invalid move. Try again.");
         }
     }
+}
+
 
     private string GetSquareNameFromPosition(Vector3 position)
     {
