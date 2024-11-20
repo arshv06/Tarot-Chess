@@ -68,4 +68,18 @@ public class BoardManager : MonoBehaviour
         float y = coordinates.y - 3.5f;
         return new Vector3(x, y, 0);
     }
+
+    public string GetSquareNameFromPosition(Vector3 position)
+    {
+        float squareSize = 1.0f;
+        float offsetX = -3.5f; // Adjust based on your board's leftmost position
+        float offsetY = -3.5f; // Adjust based on your board's bottom position
+
+        int x = Mathf.RoundToInt((position.x - offsetX) / squareSize);
+        int y = Mathf.RoundToInt((position.y - offsetY) / squareSize);
+        Vector2Int approxCoord = new Vector2Int(x, y);
+
+        string squareName = GetSquareName(approxCoord);
+        return squareName;
+    }
 }

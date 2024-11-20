@@ -10,6 +10,9 @@ public class ChessPieceMovement : MonoBehaviour
     public bool hasMoved = false;
 
     public Vector2Int boardPosition;
+    public Vector2Int startingPosition; // For revival
+
+    public int frozenForTurns = 0; // For freezing effect
 
     private void Start()
     {
@@ -26,17 +29,31 @@ public class ChessPieceMovement : MonoBehaviour
         }
 
         boardPosition = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(transform.position));
+        startingPosition = boardPosition; // Store starting position
     }
 
     public Vector2Int GetBoardPosition()
     {
         return boardPosition;
     }
-
-    private void OnMouseDown()
+     private void OnMouseDown()
     {
         if (gameManager != null)
         {
+            if (gameManager.isCardEffectActive)
+            {
+                // Do not allow piece movement during a card effect
+                return;
+            }
+
+            if (frozenForTurns > 0)
+            {
+                Debug.Log("This piece is frozen and cannot move.");
+                UIManager uiManager = FindObjectOfType<UIManager>();
+                uiManager.ShowMessage("This piece is frozen and cannot move.");
+                return;
+            }
+
             if ((gameManager.IsWhiteTurn() && tag.StartsWith("White")) ||
                 (!gameManager.IsWhiteTurn() && tag.StartsWith("Black")))
             {
@@ -56,112 +73,123 @@ public class ChessPieceMovement : MonoBehaviour
             transform.position = mousePosition;
         }
     }
-
-    private void OnMouseUp()
-{
-    if (isDragging && gameManager != null)
+    public void FreezeForTurns(int turns)
     {
-        isDragging = false;
-        GetComponent<SpriteRenderer>().sortingOrder = 1;
+        frozenForTurns = turns;
+    }
 
-        Vector2Int originalCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(originalPosition));
-        Vector2Int targetCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(transform.position));
-
-        Debug.Log($"Trying to move from {originalCoord} to {targetCoord}");
-
-        if (IsValidMove(originalCoord, targetCoord))
+     private void OnMouseUp()
+    {
+        if (isDragging && gameManager != null)
         {
-            GameObject targetPiece = gameManager.GetPieceAtPosition(targetCoord);
-            if (targetPiece != null && targetPiece != this.gameObject)
+            isDragging = false;
+            GetComponent<SpriteRenderer>().sortingOrder = 1;
+
+            Vector2Int originalCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(originalPosition));
+            Vector2Int targetCoord = boardManager.GetSquareCoordinates(GetSquareNameFromPosition(transform.position));
+
+            if (IsValidMove(originalCoord, targetCoord))
             {
-                if ((tag.StartsWith("White") && targetPiece.tag.StartsWith("Black")) ||
-                    (tag.StartsWith("Black") && targetPiece.tag.StartsWith("White")))
+                GameObject targetPiece = gameManager.GetPieceAtPosition(targetCoord);
+                if (targetPiece != null && targetPiece != this.gameObject)
                 {
-                    Destroy(targetPiece);
+                    if ((tag.StartsWith("White") && targetPiece.tag.StartsWith("Black")) ||
+                        (tag.StartsWith("Black") && targetPiece.tag.StartsWith("White")))
+                    {
+                        // Award a card before capturing the piece
+                        gameManager.AwardCard(targetPiece.tag, tag.StartsWith("White"));
+
+                        // Add the captured piece to the captured pieces list
+                        if (tag.StartsWith("White"))
+                        {
+                            gameManager.blackCapturedPieces.Add(targetPiece);
+                        }
+                        else
+                        {
+                            gameManager.whiteCapturedPieces.Add(targetPiece);
+                        }
+
+                        // Deactivate the captured piece instead of destroying it
+                        targetPiece.SetActive(false);
+                    }
+                    else
+                    {
+                        // Invalid capture (same color)
+                        transform.position = originalPosition;
+                        return;
+                    }
                 }
-                else
+
+                gameManager.UpdateBoardPosition(this.gameObject, originalCoord, targetCoord);
+                boardPosition = targetCoord;
+
+                hasMoved = true;
+
+                // Update movement flags for special moves
+                if (tag.Contains("King"))
                 {
-                    transform.position = originalPosition;
-                    return;
+                    if (tag.StartsWith("White"))
+                        gameManager.whiteKingMoved = true;
+                    else
+                        gameManager.blackKingMoved = true;
                 }
+                else if (tag.Contains("Rook"))
+                {
+                    if (tag.StartsWith("White"))
+                    {
+                        if (originalCoord.x == 0 && originalCoord.y == 0)
+                            gameManager.whiteRookQueenSideMoved = true;
+                        else if (originalCoord.x == 7 && originalCoord.y == 0)
+                            gameManager.whiteRookKingSideMoved = true;
+                    }
+                    else
+                    {
+                        if (originalCoord.x == 0 && originalCoord.y == 7)
+                            gameManager.blackRookQueenSideMoved = true;
+                        else if (originalCoord.x == 7 && originalCoord.y == 7)
+                            gameManager.blackRookKingSideMoved = true;
+                    }
+                }
+
+                SnapToGrid();
+                gameManager.SwitchTurn();
             }
-
-            gameManager.UpdateBoardPosition(this.gameObject, originalCoord, targetCoord);
-            boardPosition = targetCoord;
-
-            hasMoved = true;
-
-            if (tag.Contains("King"))
+            else
             {
-                if (tag.StartsWith("White"))
-                    gameManager.whiteKingMoved = true;
-                else
-                    gameManager.blackKingMoved = true;
+                // Invalid move; reset position
+                transform.position = originalPosition;
+                Debug.Log("Invalid move. Try again.");
             }
-            else if (tag.Contains("Rook"))
-            {
-                if (tag.StartsWith("White"))
-                {
-                    if (originalCoord.x == 0 && originalCoord.y == 0)
-                        gameManager.whiteRookQueenSideMoved = true;
-                    else if (originalCoord.x == 7 && originalCoord.y == 0)
-                        gameManager.whiteRookKingSideMoved = true;
-                }
-                else
-                {
-                    if (originalCoord.x == 0 && originalCoord.y == 7)
-                        gameManager.blackRookQueenSideMoved = true;
-                    else if (originalCoord.x == 7 && originalCoord.y == 7)
-                        gameManager.blackRookKingSideMoved = true;
-                }
-            }
+        }
+    }
 
-            SnapToGrid();
-            gameManager.SwitchTurn();
+    private string GetSquareNameFromPosition(Vector3 position)
+    {
+        float squareSize = 1.0f;
+        float offsetX = -3.5f; // Adjust based on your board's leftmost position
+        float offsetY = -3.5f; // Adjust based on your board's bottom position
+
+        int x = Mathf.RoundToInt((position.x - offsetX) / squareSize);
+        int y = Mathf.RoundToInt((position.y - offsetY) / squareSize);
+        Vector2Int approxCoord = new Vector2Int(x, y);
+
+        string squareName = boardManager.GetSquareName(approxCoord);
+        if (squareName != null)
+        {
+            Debug.Log($"Position {position} corresponds to square {squareName}");
         }
         else
         {
-            transform.position = originalPosition;
-            // Optionally, provide feedback to the player here
-            Debug.Log("Invalid move. Try again.");
+            Debug.LogError($"Position {position} corresponds to invalid coordinate {approxCoord}");
         }
+        return squareName;
     }
-}
-
-    private string GetSquareNameFromPosition(Vector3 position)
-{
-    float squareSize = 1.0f; // Size of each square on the board
-    float offsetX = -3.5f; // Adjust based on your board's leftmost position
-    float offsetY = -3.5f; // Adjust based on your board's bottom position
-
-    int x = Mathf.RoundToInt((position.x - offsetX) / squareSize);
-    int y = Mathf.RoundToInt((position.y - offsetY) / squareSize);
-    Vector2Int approxCoord = new Vector2Int(x, y);
-
-    string squareName = boardManager.GetSquareName(approxCoord);
-    if (squareName != null)
-    {
-        Debug.Log($"Position {position} corresponds to square {squareName}");
-    }
-    else
-    {
-        Debug.LogError($"Position {position} corresponds to invalid coordinate {approxCoord}");
-    }
-    return squareName;
-}
-
 
     private void SnapToGrid()
-    {
-        float squareSize = 1.0f;
-        float offsetX = -3.5f;
-        float offsetY = -3.5f;
+{
+    transform.position = boardManager.GetSquareWorldPosition(boardPosition);
+}
 
-        float snappedX = Mathf.Round((transform.position.x - offsetX) / squareSize) * squareSize + offsetX;
-        float snappedY = Mathf.Round((transform.position.y - offsetY) / squareSize) * squareSize + offsetY;
-
-        transform.position = new Vector3(snappedX, snappedY, 0);
-    }
 
     private bool IsValidMove(Vector2Int from, Vector2Int to)
     {
