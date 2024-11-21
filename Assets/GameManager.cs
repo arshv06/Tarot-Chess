@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 public class GameManager : MonoBehaviour
 {
@@ -22,6 +23,7 @@ public class GameManager : MonoBehaviour
     public GameObject lastMovedPiece = null;
     public Vector2Int lastMoveFrom;
     public Vector2Int lastMoveTo;
+    public GameObject capturedPieceOnLastMove = null;
 
     private BoardManager boardManager;
 
@@ -38,6 +40,10 @@ public class GameManager : MonoBehaviour
     // Move history
     public List<string> moveHistory = new List<string>();
 
+    // Timer variables
+    public float whitePlayerTime = 600f; // 10 minutes in seconds
+    public float blackPlayerTime = 600f;
+
     private void Start()
     {
         boardManager = FindObjectOfType<BoardManager>();
@@ -48,6 +54,48 @@ public class GameManager : MonoBehaviour
 
         SetInitialPiecePositions();
         InitializeBoard();
+    }
+
+    private void Update()
+    {
+        UpdateTimers();
+    }
+
+    // Method to update player timers
+    private void UpdateTimers()
+{
+    if (isCardEffectActive)
+        return; // Do not update timers during card effects
+
+    if (isWhiteTurn)
+    {
+        whitePlayerTime -= Time.deltaTime;
+        if (whitePlayerTime <= 0)
+        {
+            whitePlayerTime = 0;
+            EndGameDueToTimeout(false);
+        }
+    }
+    else
+    {
+        blackPlayerTime -= Time.deltaTime;
+        if (blackPlayerTime <= 0)
+        {
+            blackPlayerTime = 0;
+            EndGameDueToTimeout(true);
+        }
+    }
+
+    UIManager uiManager = FindObjectOfType<UIManager>();
+    uiManager.UpdateTimer(true, whitePlayerTime);
+    uiManager.UpdateTimer(false, blackPlayerTime);
+}
+    // Method to handle game end due to timeout
+    private void EndGameDueToTimeout(bool whiteWins)
+    {
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        uiManager.ShowEndGamePanel(whiteWins ? "White" : "Black");
+        enabled = false; // Stop the game
     }
 
     public void SetInitialPiecePositions()
@@ -160,6 +208,21 @@ public class GameManager : MonoBehaviour
         EndTurnEffects();
 
         isWhiteTurn = !isWhiteTurn;
+
+        // Check for checkmate after the turn switches
+        if (IsCheckmate(isWhiteTurn))
+        {
+            Debug.Log((isWhiteTurn ? "White" : "Black") + " is in checkmate!");
+            UIManager uiManager = FindObjectOfType<UIManager>();
+            uiManager.ShowEndGamePanel(isWhiteTurn ? "Black" : "White");
+            enabled = false; // Stop the game
+        }
+        else if (IsKingInCheck(isWhiteTurn))
+        {
+            Debug.Log((isWhiteTurn ? "White" : "Black") + " is in check!");
+            UIManager uiManager = FindObjectOfType<UIManager>();
+            uiManager.ShowMessage((isWhiteTurn ? "White" : "Black") + " is in check!");
+        }
     }
 
     public bool IsWhiteTurn()
@@ -181,7 +244,7 @@ public class GameManager : MonoBehaviour
                 {
                     Debug.Log($"{piece.tag} is no longer frozen.");
                     UIManager uiManager = FindObjectOfType<UIManager>();
-                    uiManager.ShowMessage($"{piece.tag} is no longer frozen.");
+                    uiManager.ShowMessage($"{piece.tag} is no longer frozen!");
                 }
             }
         }
@@ -246,14 +309,14 @@ public class GameManager : MonoBehaviour
             return null;
         }
 
-        int index = Random.Range(0, availableCards.Count);
+        int index = UnityEngine.Random.Range(0, availableCards.Count);
         Card drawnCard = availableCards[index];
         deck.cards.Remove(drawnCard);
         return drawnCard;
     }
 
     // Teleport card effect
-    public IEnumerator TeleportPiece(bool isWhitePlayer, System.Action onEffectComplete)
+    public IEnumerator TeleportPiece(bool isWhitePlayer, Action onEffectComplete)
     {
         isCardEffectActive = true;
 
@@ -321,7 +384,7 @@ public class GameManager : MonoBehaviour
     }
 
     // Revive piece card effect
-    public IEnumerator RevivePiece(bool isWhitePlayer, System.Action onEffectComplete)
+    public IEnumerator RevivePiece(bool isWhitePlayer, Action onEffectComplete)
     {
         isCardEffectActive = true;
 
@@ -379,7 +442,7 @@ public class GameManager : MonoBehaviour
     }
 
     // Freeze piece card effect
-    public IEnumerator FreezePiece(bool isWhitePlayer, int duration, System.Action onEffectComplete)
+    public IEnumerator FreezePiece(bool isWhitePlayer, int duration, Action onEffectComplete)
     {
         isCardEffectActive = true;
 
@@ -419,6 +482,153 @@ public class GameManager : MonoBehaviour
 
         // Invoke the callback to indicate the effect is complete
         onEffectComplete?.Invoke();
+    }
+
+    // Queen Transformation card effect
+    public IEnumerator TransformPawnToQueen(bool isWhitePlayer, Action onEffectComplete)
+    {
+        isCardEffectActive = true;
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        uiManager.ShowMessage("Select a pawn to transform into a queen.");
+
+        // Select the pawn
+        ChessPieceMovement selectedPawn = null;
+        bool pawnSelected = false;
+
+        while (!pawnSelected)
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                Collider2D collider = Physics2D.OverlapPoint(mousePosition);
+
+                if (collider != null)
+                {
+                    ChessPieceMovement piece = collider.GetComponent<ChessPieceMovement>();
+                    if (piece != null && piece.tag.StartsWith(isWhitePlayer ? "WhitePawn" : "BlackPawn"))
+                    {
+                        selectedPawn = piece;
+                        pawnSelected = true;
+                    }
+                }
+            }
+            yield return null;
+        }
+
+        // Transform pawn to queen
+        GameObject pawnGO = selectedPawn.gameObject;
+        Vector2Int position = selectedPawn.boardPosition;
+
+        // Load queen prefab
+        GameObject queenPrefab = Resources.Load<GameObject>(isWhitePlayer ? "WhiteQueenPrefab" : "BlackQueenPrefab");
+        if (queenPrefab == null)
+        {
+            Debug.LogError("Queen prefab not found in Resources folder.");
+            isCardEffectActive = false;
+            onEffectComplete?.Invoke();
+            yield break;
+        }
+
+        // Instantiate queen at pawn's position
+        GameObject queenGO = Instantiate(queenPrefab, pawnGO.transform.position, Quaternion.identity);
+        ChessPieceMovement queenScript = queenGO.GetComponent<ChessPieceMovement>();
+        queenScript.boardPosition = position;
+
+        // Update board
+        UpdateBoardPosition(queenGO, new Vector2Int(-1, -1), position);
+        board[position.x, position.y] = queenGO;
+
+        // Deactivate the pawn
+        selectedPawn.gameObject.SetActive(false);
+
+        // Wait for 5 turns
+        int turnsToWait = 5;
+        while (turnsToWait > 0)
+        {
+            yield return new WaitUntil(() => isWhiteTurn != isWhitePlayer);
+            turnsToWait--;
+        }
+
+        // Revert back to pawn
+        queenGO.SetActive(false);
+        selectedPawn.gameObject.SetActive(true);
+        selectedPawn.transform.position = queenGO.transform.position;
+        selectedPawn.boardPosition = position;
+
+        // Update board
+        UpdateBoardPosition(selectedPawn.gameObject, new Vector2Int(-1, -1), position);
+        board[position.x, position.y] = selectedPawn.gameObject;
+
+        Destroy(queenGO);
+
+        uiManager.ShowMessage("Pawn has reverted back.");
+        yield return new WaitForSeconds(2);
+        uiManager.ClearMessage();
+
+        isCardEffectActive = false;
+        onEffectComplete?.Invoke();
+    }
+
+    // Reverse last move
+    public void ReverseLastMove()
+    {
+        if (lastMovedPiece == null)
+        {
+            Debug.Log("No move to reverse.");
+            return;
+        }
+
+        // Move the piece back to its original position
+        Vector2Int currentPos = lastMoveTo;
+        Vector2Int originalPos = lastMoveFrom;
+
+        UpdateBoardPosition(lastMovedPiece, currentPos, originalPos);
+        lastMovedPiece.GetComponent<ChessPieceMovement>().boardPosition = originalPos;
+        lastMovedPiece.transform.position = boardManager.GetSquareWorldPosition(originalPos);
+
+        // Reactivate captured piece if any
+        if (capturedPieceOnLastMove != null)
+        {
+            capturedPieceOnLastMove.SetActive(true);
+            ChessPieceMovement capturedPieceScript = capturedPieceOnLastMove.GetComponent<ChessPieceMovement>();
+            capturedPieceScript.boardPosition = currentPos;
+            capturedPieceOnLastMove.transform.position = boardManager.GetSquareWorldPosition(currentPos);
+            UpdateBoardPosition(capturedPieceOnLastMove, new Vector2Int(-1, -1), currentPos);
+
+            // Remove from captured pieces list
+            if (capturedPieceOnLastMove.tag.StartsWith("White"))
+                whiteCapturedPieces.Remove(capturedPieceOnLastMove);
+            else
+                blackCapturedPieces.Remove(capturedPieceOnLastMove);
+
+            capturedPieceOnLastMove = null;
+        }
+        else
+        {
+            // No piece was captured, so clear the board position
+            board[currentPos.x, currentPos.y] = null;
+        }
+
+        // Remove the last move from move history
+        if (moveHistory.Count > 0)
+        {
+            moveHistory.RemoveAt(moveHistory.Count - 1);
+            UIManager uiManager = FindObjectOfType<UIManager>();
+            uiManager.UpdateMoveHistory(moveHistory);
+        }
+
+        // Update captured pieces UI
+        UpdateCapturedPiecesUI();
+
+        // Reset last moved piece
+        lastMovedPiece = null;
+    }
+
+    // Update the captured pieces UI
+    public void UpdateCapturedPiecesUI()
+    {
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        uiManager.UpdateCapturedPieces(whiteCapturedPieces, blackCapturedPieces);
     }
 
     // Move history methods
@@ -467,7 +677,7 @@ public class GameManager : MonoBehaviour
         moveHistory.Add(move);
 
         // Keep only the last ten moves
-        if (moveHistory.Count > 10)
+        if (moveHistory.Count > 12)
         {
             moveHistory.RemoveAt(0);
         }
@@ -493,5 +703,117 @@ public class GameManager : MonoBehaviour
     {
         // Files are from 'a' to 'h' corresponding to x = 0 to 7
         return (char)('a' + x);
+    }
+
+    // Check and Checkmate Detection Methods
+
+    public bool IsKingInCheck(bool isWhitePlayer)
+    {
+        Vector2Int kingPosition = FindKingPosition(isWhitePlayer);
+        return IsSquareUnderAttack(kingPosition, !isWhitePlayer);
+    }
+
+    private Vector2Int FindKingPosition(bool isWhitePlayer)
+    {
+        foreach (GameObject piece in board)
+        {
+            if (piece != null)
+            {
+                ChessPieceMovement pieceScript = piece.GetComponent<ChessPieceMovement>();
+                if (pieceScript.tag == (isWhitePlayer ? "WhiteKing" : "BlackKing"))
+                {
+                    return pieceScript.boardPosition;
+                }
+            }
+        }
+        return new Vector2Int(-1, -1); // King not found
+    }
+
+    public bool IsSquareUnderAttack(Vector2Int square, bool byWhite)
+    {
+        // Check all enemy pieces to see if they can move to the square
+        foreach (GameObject piece in board)
+        {
+            if (piece != null)
+            {
+                ChessPieceMovement pieceScript = piece.GetComponent<ChessPieceMovement>();
+                if (pieceScript.tag.StartsWith(byWhite ? "White" : "Black"))
+                {
+                    if (pieceScript.CanMoveTo(square))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public bool IsCheckmate(bool isWhitePlayer)
+    {
+        if (!IsKingInCheck(isWhitePlayer))
+            return false;
+
+        // Get all player's pieces
+        List<ChessPieceMovement> playerPieces = new List<ChessPieceMovement>();
+        foreach (GameObject piece in board)
+        {
+            if (piece != null)
+            {
+                ChessPieceMovement pieceScript = piece.GetComponent<ChessPieceMovement>();
+                if (pieceScript.tag.StartsWith(isWhitePlayer ? "White" : "Black"))
+                {
+                    playerPieces.Add(pieceScript);
+                }
+            }
+        }
+
+        // Check if any legal move can get the king out of check
+        foreach (ChessPieceMovement piece in playerPieces)
+        {
+            List<Vector2Int> possibleMoves = piece.GetPossibleMoves();
+            foreach (Vector2Int move in possibleMoves)
+            {
+                // Simulate the move
+                Vector2Int originalPosition = piece.boardPosition;
+                GameObject capturedPiece = GetPieceAtPosition(move);
+                UpdateBoardPosition(piece.gameObject, originalPosition, move);
+                piece.boardPosition = move;
+
+                bool isStillInCheck = IsKingInCheck(isWhitePlayer);
+
+                // Undo the move
+                UpdateBoardPosition(piece.gameObject, move, originalPosition);
+                piece.boardPosition = originalPosition;
+                if (capturedPiece != null)
+                {
+                    UpdateBoardPosition(capturedPiece, new Vector2Int(-1, -1), move);
+                }
+
+                if (!isStillInCheck)
+                {
+                    // Legal move found to escape check
+                    return false;
+                }
+            }
+        }
+
+        // No legal moves to escape check
+        return true;
+    }
+
+    // Method to add time to a player's clock
+    public void AddTimeToPlayer(bool isWhitePlayer, int seconds)
+    {
+        if (isWhitePlayer)
+        {
+            whitePlayerTime += seconds;
+        }
+        else
+        {
+            blackPlayerTime += seconds;
+        }
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        uiManager.UpdateTimer(isWhitePlayer, isWhitePlayer ? whitePlayerTime : blackPlayerTime);
     }
 }
