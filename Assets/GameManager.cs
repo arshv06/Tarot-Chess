@@ -15,6 +15,7 @@ public class GameManager : MonoBehaviour
     public bool blackKingMoved = false;
     public bool blackRookKingSideMoved = false;
     public bool blackRookQueenSideMoved = false;
+    private List<TransformedPawn> transformedPawns = new List<TransformedPawn>();
 
     // Board representation
     public GameObject[,] board = new GameObject[8, 8];
@@ -43,6 +44,10 @@ public class GameManager : MonoBehaviour
     // Timer variables
     public float whitePlayerTime = 600f; // 10 minutes in seconds
     public float blackPlayerTime = 600f;
+
+    [Header("Queen Prefabs")]
+    public GameObject whiteQueenPrefab; // Assign via Inspector
+    public GameObject blackQueenPrefab;
 
     private void Start()
     {
@@ -172,17 +177,19 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void UpdateBoardPosition(GameObject piece, Vector2Int oldPos, Vector2Int newPos)
-    {
-        if (oldPos.x >= 0 && oldPos.y >= 0)
-            board[oldPos.x, oldPos.y] = null;
+    public void UpdateBoardPosition(GameObject piece, Vector2Int? oldPos, Vector2Int? newPos)
+{
+    if (oldPos.HasValue && oldPos.Value.x >= 0 && oldPos.Value.x < 8 && oldPos.Value.y >= 0 && oldPos.Value.y < 8)
+        board[oldPos.Value.x, oldPos.Value.y] = null;
 
-        board[newPos.x, newPos.y] = piece;
+    if (newPos.HasValue && newPos.Value.x >= 0 && newPos.Value.x < 8 && newPos.Value.y >= 0 && newPos.Value.y < 8)
+        board[newPos.Value.x, newPos.Value.y] = piece;
 
-        lastMovedPiece = piece;
-        lastMoveFrom = oldPos;
-        lastMoveTo = newPos;
-    }
+    lastMovedPiece = piece;
+    lastMoveFrom = oldPos ?? new Vector2Int(-1, -1);
+    lastMoveTo = newPos ?? new Vector2Int(-1, -1);
+}
+
 
     public GameObject GetPieceAtPosition(Vector2Int position)
     {
@@ -197,33 +204,27 @@ public class GameManager : MonoBehaviour
     }
 
     public void SwitchTurn()
+{
+    EndTurnEffects();
+
+    isWhiteTurn = !isWhiteTurn;
+
+    // Check for checkmate after the turn switches
+    if (IsCheckmate(isWhiteTurn))
     {
-        if (isCardEffectActive)
-        {
-            // Do not switch turn if a card effect is still in progress
-            return;
-        }
-
-        // Handle end-of-turn effects before switching turn
-        EndTurnEffects();
-
-        isWhiteTurn = !isWhiteTurn;
-
-        // Check for checkmate after the turn switches
-        if (IsCheckmate(isWhiteTurn))
-        {
-            Debug.Log((isWhiteTurn ? "White" : "Black") + " is in checkmate!");
-            UIManager uiManager = FindObjectOfType<UIManager>();
-            uiManager.ShowEndGamePanel(isWhiteTurn ? "Black" : "White");
-            enabled = false; // Stop the game
-        }
-        else if (IsKingInCheck(isWhiteTurn))
-        {
-            Debug.Log((isWhiteTurn ? "White" : "Black") + " is in check!");
-            UIManager uiManager = FindObjectOfType<UIManager>();
-            uiManager.ShowMessage((isWhiteTurn ? "White" : "Black") + " is in check!");
-        }
+        Debug.Log((isWhiteTurn ? "White" : "Black") + " is in checkmate!");
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        uiManager.ShowEndGamePanel(isWhiteTurn ? "Black" : "White");
+        enabled = false; // Stop the game
     }
+    else if (IsKingInCheck(isWhiteTurn))
+    {
+        Debug.Log((isWhiteTurn ? "White" : "Black") + " is in check!");
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        uiManager.ShowMessage((isWhiteTurn ? "White" : "Black") + " is in check!");
+    }
+}
+
 
     public bool IsWhiteTurn()
     {
@@ -231,24 +232,60 @@ public class GameManager : MonoBehaviour
     }
 
     // Method to handle end-of-turn effects
-    public void EndTurnEffects()
+   public void EndTurnEffects()
+{
+    UIManager uiManager = FindObjectOfType<UIManager>();
+
+    // Decrement freeze durations on all pieces
+    ChessPieceMovement[] allPieces = FindObjectsOfType<ChessPieceMovement>();
+    foreach (ChessPieceMovement piece in allPieces)
     {
-        // Decrement freeze durations on all pieces
-        ChessPieceMovement[] allPieces = FindObjectsOfType<ChessPieceMovement>();
-        foreach (ChessPieceMovement piece in allPieces)
+        if (piece.frozenForTurns > 0)
         {
-            if (piece.frozenForTurns > 0)
+            piece.frozenForTurns--;
+            if (piece.frozenForTurns == 0)
             {
-                piece.frozenForTurns--;
-                if (piece.frozenForTurns == 0)
-                {
-                    Debug.Log($"{piece.tag} is no longer frozen.");
-                    UIManager uiManager = FindObjectOfType<UIManager>();
-                    uiManager.ShowMessage($"{piece.tag} is no longer frozen!");
-                }
+                Debug.Log($"{piece.tag} is no longer frozen.");
+                uiManager.ShowMessage($"{piece.tag} is no longer frozen!");
             }
         }
     }
+
+    // Process transformed pawns
+    for (int i = transformedPawns.Count - 1; i >= 0; i--)
+    {
+        TransformedPawn tp = transformedPawns[i];
+        tp.turnsRemaining--;
+
+        if (tp.turnsRemaining <= 0)
+        {
+            // Revert back to pawn
+            Vector2Int position = tp.queen.GetComponent<ChessPieceMovement>().boardPosition;
+
+            // Remove queen from board
+            UpdateBoardPosition(tp.queen, position, null);
+            tp.queen.SetActive(false);
+
+            // Reactivate pawn
+            tp.pawn.SetActive(true);
+            tp.pawn.transform.position = tp.queen.transform.position;
+            tp.pawn.GetComponent<ChessPieceMovement>().boardPosition = position;
+
+            // Update board
+            UpdateBoardPosition(tp.pawn, null, position);
+            board[position.x, position.y] = tp.pawn;
+
+            // Destroy queen GameObject
+            Destroy(tp.queen);
+
+            // Remove from transformedPawns list
+            transformedPawns.RemoveAt(i);
+
+            uiManager.ShowMessage("Pawn has reverted back.");
+        }
+    }
+}
+
 
     // Card system methods
 
@@ -485,89 +522,89 @@ public class GameManager : MonoBehaviour
     }
 
     // Queen Transformation card effect
-    public IEnumerator TransformPawnToQueen(bool isWhitePlayer, Action onEffectComplete)
+   public class TransformedPawn
+{
+    public GameObject pawn;
+    public GameObject queen;
+    public int turnsRemaining;
+
+    public TransformedPawn(GameObject pawn, GameObject queen, int turns)
     {
-        isCardEffectActive = true;
-        UIManager uiManager = FindObjectOfType<UIManager>();
-        uiManager.ShowMessage("Select a pawn to transform into a queen.");
+        this.pawn = pawn;
+        this.queen = queen;
+        this.turnsRemaining = turns;
+    }
+}
 
-        // Select the pawn
-        ChessPieceMovement selectedPawn = null;
-        bool pawnSelected = false;
+// Then modify your TransformPawnToQueen coroutine as follows:
+public IEnumerator TransformPawnToQueen(bool isWhitePlayer, Action onEffectComplete)
+{
+    isCardEffectActive = true;
+    UIManager uiManager = FindObjectOfType<UIManager>();
+    uiManager.ShowMessage("Select a pawn to transform into a queen.");
 
-        while (!pawnSelected)
+    // Select the pawn
+    ChessPieceMovement selectedPawn = null;
+    bool pawnSelected = false;
+
+    while (!pawnSelected)
+    {
+        if (Input.GetMouseButtonDown(0))
         {
-            if (Input.GetMouseButtonDown(0))
-            {
-                Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                Collider2D collider = Physics2D.OverlapPoint(mousePosition);
+            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Collider2D collider = Physics2D.OverlapPoint(mousePosition);
 
-                if (collider != null)
+            if (collider != null)
+            {
+                ChessPieceMovement piece = collider.GetComponent<ChessPieceMovement>();
+                if (piece != null && piece.tag.StartsWith(isWhitePlayer ? "WhitePawn" : "BlackPawn"))
                 {
-                    ChessPieceMovement piece = collider.GetComponent<ChessPieceMovement>();
-                    if (piece != null && piece.tag.StartsWith(isWhitePlayer ? "WhitePawn" : "BlackPawn"))
-                    {
-                        selectedPawn = piece;
-                        pawnSelected = true;
-                    }
+                    selectedPawn = piece;
+                    pawnSelected = true;
                 }
             }
-            yield return null;
         }
+        yield return null;
+    }
 
-        // Transform pawn to queen
-        GameObject pawnGO = selectedPawn.gameObject;
-        Vector2Int position = selectedPawn.boardPosition;
+    // Transform pawn to queen
+    GameObject pawnGO = selectedPawn.gameObject;
+    Vector2Int position = selectedPawn.boardPosition;
 
-        // Load queen prefab
-        GameObject queenPrefab = Resources.Load<GameObject>(isWhitePlayer ? "WhiteQueenPrefab" : "BlackQueenPrefab");
-        if (queenPrefab == null)
-        {
-            Debug.LogError("Queen prefab not found in Resources folder.");
-            isCardEffectActive = false;
-            onEffectComplete?.Invoke();
-            yield break;
-        }
-
-        // Instantiate queen at pawn's position
-        GameObject queenGO = Instantiate(queenPrefab, pawnGO.transform.position, Quaternion.identity);
-        ChessPieceMovement queenScript = queenGO.GetComponent<ChessPieceMovement>();
-        queenScript.boardPosition = position;
-
-        // Update board
-        UpdateBoardPosition(queenGO, new Vector2Int(-1, -1), position);
-        board[position.x, position.y] = queenGO;
-
-        // Deactivate the pawn
-        selectedPawn.gameObject.SetActive(false);
-
-        // Wait for 5 turns
-        int turnsToWait = 5;
-        while (turnsToWait > 0)
-        {
-            yield return new WaitUntil(() => isWhiteTurn != isWhitePlayer);
-            turnsToWait--;
-        }
-
-        // Revert back to pawn
-        queenGO.SetActive(false);
-        selectedPawn.gameObject.SetActive(true);
-        selectedPawn.transform.position = queenGO.transform.position;
-        selectedPawn.boardPosition = position;
-
-        // Update board
-        UpdateBoardPosition(selectedPawn.gameObject, new Vector2Int(-1, -1), position);
-        board[position.x, position.y] = selectedPawn.gameObject;
-
-        Destroy(queenGO);
-
-        uiManager.ShowMessage("Pawn has reverted back.");
-        yield return new WaitForSeconds(2);
-        uiManager.ClearMessage();
-
+    // Instantiate queen prefab at pawn's position
+    GameObject queenPrefab = isWhitePlayer ? whiteQueenPrefab : blackQueenPrefab;
+    if (queenPrefab == null)
+    {
+        Debug.LogError("Queen prefab not assigned in GameManager!");
         isCardEffectActive = false;
         onEffectComplete?.Invoke();
+        yield break;
     }
+
+    GameObject queenGO = Instantiate(queenPrefab, pawnGO.transform.position, Quaternion.identity);
+    ChessPieceMovement queenScript = queenGO.GetComponent<ChessPieceMovement>();
+    queenScript.boardPosition = position;
+
+    // Update board
+    UpdateBoardPosition(queenGO, new Vector2Int(-1, -1), position);
+    board[position.x, position.y] = queenGO;
+
+    // Deactivate the pawn
+    selectedPawn.gameObject.SetActive(false);
+
+    // Remove the pawn from captured list if it's there
+    whiteCapturedPieces.Remove(selectedPawn.gameObject);
+    blackCapturedPieces.Remove(selectedPawn.gameObject);
+
+    // Add to transformedPawns list
+    transformedPawns.Add(new TransformedPawn(selectedPawn.gameObject, queenGO, 5)); // 5 turns
+
+    uiManager.ClearMessage();
+    isCardEffectActive = false;
+
+    // Invoke the callback to indicate the effect is complete
+    onEffectComplete?.Invoke();
+}
 
     // Reverse last move
     public void ReverseLastMove()

@@ -16,4 +16,4 @@ MonoBehaviour:
   description: Adds 3mins to your clock
   artwork: {fileID: 21300000, guid: 786779fbd858d0f4ab57b6b3e7fafeaa, type: 3}
   rarity: 0
-  timeToAdd: 180
+  timeToAdd: 20
