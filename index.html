@@ -132,26 +132,39 @@
 <body>
 
     <div id="lobby">
-        <h1 style="font-size: 3rem; margin: 0; color: var(--accent);">TAROT CHESS</h1>
-        <div id="lobby-start">
-            <input type="number" id="time-setting" value="10" min="1" max="60" style="width:100px; margin-bottom: 10px;">
-            <br>
-            <button onclick="createRoom()">HOST GAME</button>
+        <img src="assets/tarotchess.png" alt="Tarot Chess" style="height:120px; object-fit:contain;" onerror="this.outerHTML='<h1 style=\'font-size:3rem;margin:0;color:var(--accent)\'>TAROT CHESS</h1>'">
+        <div id="lobby-start" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <label style="font-size:0.75rem;color:#666;letter-spacing:0.1em;text-transform:uppercase;">Time Control</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+                    <button class="time-btn" onclick="setTime(1)"  style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">1 min</button>
+                    <button class="time-btn" onclick="setTime(3)"  style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">3 min</button>
+                    <button class="time-btn" onclick="setTime(5)"  style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">5 min</button>
+                    <button class="time-btn" onclick="setTime(10)" style="padding:8px 14px;font-size:0.85rem;background:var(--accent);color:#000;">10 min</button>
+                    <button class="time-btn" onclick="setTime(15)" style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">15 min</button>
+                    <button class="time-btn" onclick="setTime(30)" style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">30 min</button>
+                </div>
+                <div id="custom-time-row" style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                    <input type="number" id="time-setting" value="10" min="1" max="60" style="width:70px;padding:8px;font-size:0.9rem;" oninput="setTime(parseInt(this.value)||10,true)">
+                    <span style="font-size:0.8rem;color:#555;">min (custom)</span>
+                </div>
+            </div>
+            <button onclick="createRoom()" style="margin-top:4px;">HOST GAME</button>
         </div>
-        <div id="lobby-wait" class="hidden">
-            <p>Room Code: <input type="text" id="my-peer-id" readonly onclick="this.select()"></p>
-            <p style="color: var(--accent); animation: pulse 1.5s infinite;">Waiting for opponent...</p>
+        <div id="lobby-wait" class="hidden" style="text-align:center;">
+            <p style="margin:0 0 8px;font-size:0.85rem;color:#555;">Share this code with your opponent</p>
+            <input type="text" id="my-peer-id" readonly onclick="this.select()" style="letter-spacing:0.05em;">
+            <p style="color: var(--accent); margin:12px 0 0;">Waiting for opponent...</p>
         </div>
-        <div id="lobby-join">
-            <input type="text" id="host-peer-id" placeholder="Paste Code Here">
-            <br><br>
+        <div id="lobby-join" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+            <input type="text" id="host-peer-id" placeholder="Paste Room Code Here">
             <button onclick="joinRoom()" style="background: #333; color: white;">JOIN GAME</button>
         </div>
     </div>
 
     <div id="game-layout">
         <div id="board-wrapper">
-            <div id="teleport-indicator">✨ TELEPORT MODE ACTIVE ✨</div>
+            <div id="teleport-indicator">✨ QUANTUM MODE — Drag any of your pieces anywhere ✨</div>
             <div id="board"></div>
             <div id="freeze-overlay">FROZEN</div>
         </div>
@@ -238,12 +251,12 @@
 
     const CARDS = {
         'add_time': { name: 'Time Warp', desc: '+30s to your clock' },
-        'freeze': { name: 'Glacial', desc: 'Freeze opponent piece' },
+        'freeze': { name: 'Glacial', desc: 'Freeze one opponent piece' },
         'cancel_card': { name: 'Mind Wipe', desc: 'Burn random enemy card' },
-        'teleport': { name: 'Quantum', desc: 'Move piece anywhere (Should not check)' },
-        'queen_pawn': { name: 'Demotion', desc: 'Enemy Queen -> Pawn (2 turns)' },
-        'revive': { name: 'Necro', desc: 'Revive captured piece' },
-        'board_flip': { name: 'Vertigo', desc: 'Flipped vision for 1.5 min' }
+        'teleport': { name: 'Quantum', desc: 'Move any your piece anywhere (no check)' },
+        'queen_pawn': { name: 'Demotion', desc: "Enemy Queen → Pawn for 2 turns" },
+        'revive': { name: 'Necro', desc: 'Place a captured piece back on the board' },
+        'board_flip': { name: 'Vertigo', desc: "Flip opponent's board view for 2 turns" }
     };
 
     // Piece values for material score
@@ -265,9 +278,28 @@
         window.addEventListener('resize', () => board && board.resize());
     }
 
+    let selectedTimeMinutes = 10;
+
+    function setTime(mins, fromInput) {
+        selectedTimeMinutes = mins;
+        document.querySelectorAll('.time-btn').forEach(b => {
+            b.style.background = '#222';
+            b.style.color = '#aaa';
+        });
+        if (!fromInput) {
+            document.getElementById('time-setting').value = mins;
+            // Highlight the matching button
+            document.querySelectorAll('.time-btn').forEach(b => {
+                if (b.textContent.trim() === mins + ' min') {
+                    b.style.background = 'var(--accent)';
+                    b.style.color = '#000';
+                }
+            });
+        }
+    }
+
     function createRoom() {
-        const mins = parseInt(document.getElementById('time-setting').value) || 10;
-        state.whiteTime = state.blackTime = mins * 60;
+        state.whiteTime = state.blackTime = selectedTimeMinutes * 60;
         document.getElementById('lobby-start').classList.add('hidden');
         document.getElementById('lobby-join').classList.add('hidden');
         document.getElementById('lobby-wait').classList.remove('hidden');
@@ -294,12 +326,22 @@
                     orientation: myColor === 'w' ? 'white' : 'black',
                     pieceTheme: pieceTheme,
                     onDragStart: (s, p) => {
-                        if(state.gameOver || state.turn !== myColor) return false;
+                        if(state.gameOver) return false;
                         
-                        // In revive mode, can't move pieces normally
+                        // In revive mode, disable all dragging (click-only)
                         if(selectionMode === 'revive') return false;
                         
-                        // Check if this piece is frozen
+                        // In freeze mode, disable dragging
+                        if(selectionMode === 'freeze') return false;
+
+                        // Teleport: allow dragging ANY of your own pieces, regardless of turn
+                        if(state.activeEffects[myColor].teleport && state.turn === myColor) {
+                            return p.search(myColor) !== -1;
+                        }
+                        
+                        if(state.turn !== myColor) return false;
+                        
+                        // Check if this piece is frozen by opponent's effect
                         const oppColor = myColor === 'w' ? 'b' : 'w';
                         if(state.activeEffects[oppColor].frozenPiece === s) {
                             return false;
@@ -454,14 +496,14 @@
             
             state.activeEffects[playerColor].teleport = false;
             if (selectionMode === 'revive') {
-                addLog(`♻️ ${playerColor.toUpperCase()} revived ${piece.type.toUpperCase()} at ${moveObj.to}`);
+                addLog(`♻️ ${playerColor === 'w' ? 'W' : 'B'}: Revive ${piece.type.toUpperCase()} → ${moveObj.to}`);
                 selectionMode = null;
                 selectedPiece = null;
             } else {
-                addLog(`✨ Teleport: ${moveObj.from}->${moveObj.to}`);
+                addLog(`✨ ${playerColor === 'w' ? 'W' : 'B'}: Teleport ${moveObj.from}→${moveObj.to}`);
             }
             
-            moveResult = { captured: null };
+            moveResult = { captured: null, san: null };
         } else {
             moveResult = game.move(moveObj);
         }
@@ -474,21 +516,32 @@
                 if(moveResult.captured !== 'p') {
                     awardCard(playerColor);
                 }
-                addLog(`${playerColor.toUpperCase()} captured ${moveResult.captured.toUpperCase()}`);
+            }
+            
+            // Build chess notation log entry
+            let notation = '';
+            if (moveResult.san) {
+                notation = moveResult.san; // standard algebraic notation from chess.js
+            } else if (selectionMode === null && state.activeEffects[playerColor].teleport === false) {
+                // Already cleared teleport above, build manual notation
+                notation = `${moveObj.from}-${moveObj.to}`;
             }
             
             // Process temp effects expiry
             moveCount++;
             state.tempEffects = state.tempEffects.filter(effect => {
                 if (effect.expiryTurn <= moveCount) {
-                    // Revert queen_pawn effect
                     if (effect.type === 'queen_pawn') {
                         const currentPiece = game.get(effect.square);
                         if (currentPiece && currentPiece.type === 'p') {
                             game.remove(effect.square);
                             game.put(effect.originalPiece, effect.square);
-                            addLog(`👑 Queen at ${effect.square} restored!`);
+                            addLog(`👑 Queen restored at ${effect.square}`);
                         }
+                    }
+                    if (effect.type === 'board_flip') {
+                        state.activeEffects[effect.target].flipped = false;
+                        addLog(`🔄 Board flip expired for ${effect.target.toUpperCase()}`);
                     }
                     return false;
                 }
@@ -498,9 +551,21 @@
             state.fen = game.fen();
             state.turn = game.turn();
             
-            if(game.in_checkmate()) endGame(`${playerColor === 'w' ? 'White' : 'Black'} Wins!`);
-            else if(game.in_stalemate()) endGame('Draw - Stalemate');
-            else if(game.in_draw()) endGame('Draw');
+            // Check / checkmate detection
+            if(game.in_checkmate()) {
+                addLog(`♟ ${notation} — CHECKMATE! ${playerColor === 'w' ? 'White' : 'Black'} wins!`);
+                endGame(`${playerColor === 'w' ? 'White' : 'Black'} Wins by Checkmate!`);
+            } else if(game.in_check()) {
+                addLog(`♟ ${notation} — CHECK!`);
+            } else if(game.in_stalemate()) {
+                addLog(`♟ ${notation} — Stalemate`);
+                endGame('Draw — Stalemate');
+            } else if(game.in_draw()) {
+                addLog(`♟ ${notation} — Draw`);
+                endGame('Draw');
+            } else if (notation) {
+                addLog(`♟ ${playerColor === 'w' ? 'W' : 'B'}: ${notation}`);
+            }
             
             sync();
             return true;
@@ -649,12 +714,13 @@
             return true;
         }
         else if(id === 'board_flip') { 
-            state.activeEffects[opp].flipped = true; 
-            setTimeout(() => { 
-                state.activeEffects[opp].flipped = false; 
-                if(isHost) sync(); 
-            }, 10000);
-            addLog(`🔮 ${CARDS[id].name} used by ${user.toUpperCase()}`);
+            state.activeEffects[opp].flipped = true;
+            state.tempEffects.push({
+                type: 'board_flip',
+                target: opp,
+                expiryTurn: moveCount + 4  // 2 full turns = 4 half-moves
+            });
+            addLog(`🔮 ${CARDS[id].name} used by ${user.toUpperCase()} — ${opp.toUpperCase()} board flipped for 2 turns`);
             return true;
         }
         
@@ -697,8 +763,12 @@
         state.turn = s.turn;
 
         const isMy = s.turn === myColor;
+        const inCheck = game.in_check();
+        const checkLabel = inCheck && isMy ? ' ⚠️ CHECK!' : '';
         document.getElementById('my-indicator').className = `mini-indicator ${isMy?'active':''}`;
+        document.getElementById('my-indicator').textContent = isMy ? `Your Turn${checkLabel}` : 'Your Turn';
         document.getElementById('opp-indicator').className = `mini-indicator ${!isMy?'active':''}`;
+        document.getElementById('opp-indicator').textContent = !isMy ? `Opponent${inCheck && !isMy ? ' ⚠️' : ''}` : 'Opponent';
 
         // Always update game and board position
         if(game.fen() !== s.fen) { 
