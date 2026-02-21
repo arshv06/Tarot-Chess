@@ -127,44 +127,101 @@
         
         .board-square-highlight { box-shadow: inset 0 0 0 3px var(--accent) !important; }
         .frozen-piece-overlay { position: absolute; width: 100%; height: 100%; background: rgba(0, 191, 255, 0.4); border: 2px solid cyan; pointer-events: none; z-index: 5; }
+
+        /* Revive Modal */
+        #revive-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+        #revive-modal.open { display: flex; }
+        #revive-modal-inner {
+            background: #1a1a1a;
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            padding: 24px;
+            min-width: 320px;
+            max-width: 480px;
+            text-align: center;
+        }
+        #revive-modal-inner h3 { margin: 0 0 6px; color: var(--accent); font-size: 1.1rem; }
+        #revive-modal-inner p  { margin: 0 0 16px; font-size: 0.75rem; color: #777; }
+        #revive-pieces-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .revive-piece-btn {
+            width: 52px; height: 52px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: #252525;
+            border: 2px solid #444;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.15s;
+            position: relative;
+        }
+        .revive-piece-btn:hover  { border-color: var(--accent); transform: scale(1.1); background-color: #333; }
+        .revive-piece-btn.chosen { border-color: var(--accent); border-width: 3px; background-color: #3a3000; }
+        .revive-piece-btn .piece-label {
+            position: absolute; bottom: -18px; left: 0; right: 0;
+            font-size: 0.6rem; color: #888; text-align: center;
+        }
+        #revive-cancel-btn {
+            background: #333; color: #aaa; padding: 8px 20px;
+            border-radius: 6px; border: 1px solid #444; cursor: pointer; font-size: 0.85rem;
+        }
+        #revive-cancel-btn:hover { background: #444; }
+        #revive-instruction {
+            font-size: 0.72rem; color: #aaa;
+            background: #111; border: 1px solid #333;
+            border-radius: 4px; padding: 6px 10px;
+            margin-bottom: 12px; display: none;
+        }
     </style>
 </head>
 <body>
 
     <div id="lobby">
-        <img src="assets/tarotchess.png" alt="Tarot Chess" style="height:120px; object-fit:contain;" onerror="this.outerHTML='<h1 style=\'font-size:3rem;margin:0;color:var(--accent)\'>TAROT CHESS</h1>'">
-        <div id="lobby-start" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-                <label style="font-size:0.75rem;color:#666;letter-spacing:0.1em;text-transform:uppercase;">Time Control</label>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-                    <button class="time-btn" onclick="setTime(1)"  style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">1 min</button>
-                    <button class="time-btn" onclick="setTime(3)"  style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">3 min</button>
-                    <button class="time-btn" onclick="setTime(5)"  style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">5 min</button>
-                    <button class="time-btn" onclick="setTime(10)" style="padding:8px 14px;font-size:0.85rem;background:var(--accent);color:#000;">10 min</button>
-                    <button class="time-btn" onclick="setTime(15)" style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">15 min</button>
-                    <button class="time-btn" onclick="setTime(30)" style="padding:8px 14px;font-size:0.85rem;background:#222;color:#aaa;">30 min</button>
-                </div>
-                <div id="custom-time-row" style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-                    <input type="number" id="time-setting" value="10" min="1" max="60" style="width:70px;padding:8px;font-size:0.9rem;" oninput="setTime(parseInt(this.value)||10,true)">
-                    <span style="font-size:0.8rem;color:#555;">min (custom)</span>
-                </div>
-            </div>
-            <button onclick="createRoom()" style="margin-top:4px;">HOST GAME</button>
+        <h1 style="font-size: 3rem; margin: 0; color: var(--accent);">TAROT CHESS</h1>
+        <div id="lobby-start">
+            <input type="number" id="time-setting" value="10" min="1" max="60" style="width:100px; margin-bottom: 10px;">
+            <br>
+            <button onclick="createRoom()">HOST GAME</button>
         </div>
-        <div id="lobby-wait" class="hidden" style="text-align:center;">
-            <p style="margin:0 0 8px;font-size:0.85rem;color:#555;">Share this code with your opponent</p>
-            <input type="text" id="my-peer-id" readonly onclick="this.select()" style="letter-spacing:0.05em;">
-            <p style="color: var(--accent); margin:12px 0 0;">Waiting for opponent...</p>
+        <div id="lobby-wait" class="hidden">
+            <p>Room Code: <input type="text" id="my-peer-id" readonly onclick="this.select()"></p>
+            <p style="color: var(--accent); animation: pulse 1.5s infinite;">Waiting for opponent...</p>
         </div>
-        <div id="lobby-join" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
-            <input type="text" id="host-peer-id" placeholder="Paste Room Code Here">
+        <div id="lobby-join">
+            <input type="text" id="host-peer-id" placeholder="Paste Code Here">
+            <br><br>
             <button onclick="joinRoom()" style="background: #333; color: white;">JOIN GAME</button>
+        </div>
+    </div>
+
+    <!-- Revive Modal -->
+    <div id="revive-modal">
+        <div id="revive-modal-inner">
+            <h3>♻️ NECRO — Choose a piece to revive</h3>
+            <p>Select a piece, then click a valid square on your back two ranks</p>
+            <div id="revive-pieces-grid"></div>
+            <div id="revive-instruction">Now click a square on your first or second rank to place it</div>
+            <button id="revive-cancel-btn" onclick="cancelRevive()">Cancel</button>
         </div>
     </div>
 
     <div id="game-layout">
         <div id="board-wrapper">
-            <div id="teleport-indicator">✨ QUANTUM MODE — Drag any of your pieces anywhere ✨</div>
+            <div id="teleport-indicator">✨ TELEPORT MODE ACTIVE ✨</div>
             <div id="board"></div>
             <div id="freeze-overlay">FROZEN</div>
         </div>
@@ -251,12 +308,12 @@
 
     const CARDS = {
         'add_time': { name: 'Time Warp', desc: '+30s to your clock' },
-        'freeze': { name: 'Glacial', desc: 'Freeze one opponent piece' },
+        'freeze': { name: 'Glacial', desc: 'Freeze opponent piece' },
         'cancel_card': { name: 'Mind Wipe', desc: 'Burn random enemy card' },
-        'teleport': { name: 'Quantum', desc: 'Move any your piece anywhere (no check)' },
-        'queen_pawn': { name: 'Demotion', desc: "Enemy Queen → Pawn for 2 turns" },
-        'revive': { name: 'Necro', desc: 'Place a captured piece back on the board' },
-        'board_flip': { name: 'Vertigo', desc: "Flip opponent's board view for 2 turns" }
+        'teleport': { name: 'Quantum', desc: 'Move piece anywhere (Should not check)' },
+        'queen_pawn': { name: 'Demotion', desc: 'Enemy Queen -> Pawn (2 turns)' },
+        'revive': { name: 'Necro', desc: 'Revive captured piece' },
+        'board_flip': { name: 'Vertigo', desc: 'Flipped vision for 1.5 min' }
     };
 
     // Piece values for material score
@@ -278,28 +335,9 @@
         window.addEventListener('resize', () => board && board.resize());
     }
 
-    let selectedTimeMinutes = 10;
-
-    function setTime(mins, fromInput) {
-        selectedTimeMinutes = mins;
-        document.querySelectorAll('.time-btn').forEach(b => {
-            b.style.background = '#222';
-            b.style.color = '#aaa';
-        });
-        if (!fromInput) {
-            document.getElementById('time-setting').value = mins;
-            // Highlight the matching button
-            document.querySelectorAll('.time-btn').forEach(b => {
-                if (b.textContent.trim() === mins + ' min') {
-                    b.style.background = 'var(--accent)';
-                    b.style.color = '#000';
-                }
-            });
-        }
-    }
-
     function createRoom() {
-        state.whiteTime = state.blackTime = selectedTimeMinutes * 60;
+        const mins = parseInt(document.getElementById('time-setting').value) || 10;
+        state.whiteTime = state.blackTime = mins * 60;
         document.getElementById('lobby-start').classList.add('hidden');
         document.getElementById('lobby-join').classList.add('hidden');
         document.getElementById('lobby-wait').classList.remove('hidden');
@@ -328,22 +366,18 @@
                     onDragStart: (s, p) => {
                         if(state.gameOver) return false;
                         
-                        // In revive mode, disable all dragging (click-only)
-                        if(selectionMode === 'revive') return false;
-                        
-                        // In freeze mode, disable dragging
-                        if(selectionMode === 'freeze') return false;
+                        // In revive or freeze mode, disable dragging
+                        if(selectionMode === 'revive' || selectionMode === 'revive-place' || selectionMode === 'freeze') return false;
 
-                        // Teleport: allow dragging ANY of your own pieces, regardless of turn
+                        // Teleport: allow dragging ANY of your own pieces
                         if(state.activeEffects[myColor].teleport && state.turn === myColor) {
                             return p.search(myColor) !== -1;
                         }
                         
                         if(state.turn !== myColor) return false;
                         
-                        // Check if this piece is frozen by opponent's effect
-                        const oppColor = myColor === 'w' ? 'b' : 'w';
-                        if(state.activeEffects[oppColor].frozenPiece === s) {
+                        // Check if THIS piece is frozen (frozen piece is stored in MY effects)
+                        if(state.activeEffects[myColor].frozenPiece === s) {
                             return false;
                         }
                         
@@ -385,158 +419,200 @@
     }
 
     function handleBoardClick(e) {
-        if (!selectionMode) return;
-        
-        const square = getSquareFromClick(e);
-        if (!square) return;
-        
+        // Only active during freeze-selection or revive placement
         if (selectionMode === 'freeze') {
+            const square = getSquareFromClick(e);
+            if (!square) return;
             const piece = game.get(square);
             const oppColor = myColor === 'w' ? 'b' : 'w';
-            
             if (piece && piece.color === oppColor) {
-                // Freeze this piece
                 if (isHost) {
-                    state.activeEffects[myColor].frozenPiece = square;
-                    addLog(`❄️ ${myColor.toUpperCase()} froze piece at ${square}!`);
+                    state.activeEffects[oppColor].frozenPiece = square;
+                    addLog(`❄️ ${myColor === 'w' ? 'W' : 'B'} froze ${piece.type.toUpperCase()} at ${square}`);
                     selectionMode = null;
                     hideSelectionMessage();
                     sync();
                 } else {
-                    conn.send({ type: 'FREEZE_PIECE', square: square });
+                    conn.send({ type: 'FREEZE_PIECE', square });
                     selectionMode = null;
                     hideSelectionMessage();
                 }
             }
-        } else if (selectionMode === 'revive' && selectedPiece) {
-            // Place the revived piece
-            const moveData = { from: null, to: square, promotion: 'q' };
-            if (isHost) {
-                const success = processMove(moveData, 'w');
-                if (success) {
-                    // Remove from captured
-                    const idx = state.captured.w.findIndex(p => 
-                        p.type === selectedPiece.type && p.color === selectedPiece.color
-                    );
-                    if (idx > -1) state.captured.w.splice(idx, 1);
-                    updateMaterialScore();
-                }
-                hideSelectionMessage();
-            } else {
-                conn.send({ type: 'REVIVE_PIECE', piece: selectedPiece, square: square });
-                hideSelectionMessage();
+        } else if (selectionMode === 'revive-place' && selectedPiece) {
+            const square = getSquareFromClick(e);
+            if (!square) return;
+
+            // Validate: must be in player's back two ranks
+            const rank = parseInt(square[1]);
+            const validRanks = myColor === 'w' ? [1, 2] : [7, 8];
+            if (!validRanks.includes(rank)) {
+                addLog(`⚠️ Revive: must place on your first or second rank`);
+                return;
             }
+            // Square must be empty
+            if (game.get(square)) {
+                addLog(`⚠️ Revive: square ${square} is occupied`);
+                return;
+            }
+
+            // Safety check: placing it should not put own king in check
+            const testGame = new Chess(game.fen());
+            testGame.put({ type: selectedPiece.type, color: myColor }, square);
+            const tTokens = testGame.fen().split(' ');
+            tTokens[1] = myColor;
+            testGame.load(tTokens.join(' '));
+            if (testGame.in_check()) {
+                addLog(`⚠️ Revive blocked — would leave your king in check`);
+                return;
+            }
+
+            // Execute
+            if (isHost) {
+                processRevive('w', selectedPiece, square);
+            } else {
+                conn.send({ type: 'REVIVE_PIECE', piece: selectedPiece, square });
+            }
+            cancelRevive();
         }
     }
 
+    // Dedicated revive executor (runs on host only)
+    function processRevive(playerColor, piece, square) {
+        const oppColor = playerColor === 'w' ? 'b' : 'w';
+
+        // Remove one matching piece from opponent's captures (these are MY pieces that died)
+        const idx = state.captured[oppColor].findIndex(p => p.type === piece.type && p.color === playerColor);
+        if (idx === -1) return;
+        state.captured[oppColor].splice(idx, 1);
+        updateMaterialScore();
+
+        // Place on board
+        game.put({ type: piece.type, color: playerColor }, square);
+        
+        // Update FEN but DON'T flip turn (cards don't end your turn)
+        state.fen = game.fen();
+
+        addLog(`♻️ ${playerColor === 'w' ? 'W' : 'B'}: Revive ${piece.type.toUpperCase()} → ${square}`);
+        sync();
+    }
+
+    function cancelRevive() {
+        selectionMode = null;
+        selectedPiece = null;
+        hideSelectionMessage();
+        document.getElementById('revive-modal').classList.remove('open');
+    }
+
+    function openReviveModal(capturedPieces) {
+        const grid = document.getElementById('revive-pieces-grid');
+        grid.innerHTML = '';
+        const typeMap = { p: 'pawn', n: 'horse', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
+        const typeNames = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' };
+
+        capturedPieces.forEach((piece) => {
+            const btn = document.createElement('div');
+            btn.className = 'revive-piece-btn';
+            btn.style.backgroundImage = `url('${ASSETS_PATH}pieces/${myColor}${typeMap[piece.type]}.png')`;
+            btn.innerHTML = `<span class="piece-label">${typeNames[piece.type]}</span>`;
+            btn.onclick = () => {
+                document.querySelectorAll('.revive-piece-btn').forEach(b => b.classList.remove('chosen'));
+                btn.classList.add('chosen');
+                selectedPiece = { type: piece.type, color: myColor };
+                document.getElementById('revive-instruction').style.display = 'block';
+                selectionMode = 'revive-place';
+                // Close modal so player can click the board
+                document.getElementById('revive-modal').classList.remove('open');
+                showSelectionMessage('Click your first or second rank to place the piece');
+            };
+            grid.appendChild(btn);
+        });
+
+        document.getElementById('revive-instruction').style.display = 'none';
+        document.getElementById('revive-modal').classList.add('open');
+    }
+
     function getSquareFromClick(e) {
-        const boardElement = document.getElementById('board');
-        const rect = boardElement.getBoundingClientRect();
+        const boardEl = document.getElementById('board');
+        const rect = boardEl.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        const squareSize = rect.width / 8;
-        
-        let file = Math.floor(x / squareSize);
-        let rank = 7 - Math.floor(y / squareSize);
-        
-        // Adjust for board orientation
-        const orientation = board.orientation();
-        if (orientation === 'black') {
+        const sq = rect.width / 8;
+
+        let file = Math.floor(x / sq);
+        let rank = 7 - Math.floor(y / sq);
+
+        if (board.orientation() === 'black') {
             file = 7 - file;
             rank = 7 - rank;
         }
-        
         if (file < 0 || file > 7 || rank < 0 || rank > 7) return null;
-        
         return String.fromCharCode(97 + file) + (rank + 1);
     }
 
     function processMove(moveObj, playerColor) {
         if(state.gameOver || state.turn !== playerColor) return false;
         
-        // Check if moving a frozen piece
-        const oppColor = playerColor === 'w' ? 'b' : 'w';
-        if(state.activeEffects[oppColor].frozenPiece === moveObj.from) {
+        // Check if moving a frozen piece (frozen piece is on THIS player's effects)
+        if(state.activeEffects[playerColor].frozenPiece === moveObj.from) {
             addLog(`❄️ Piece at ${moveObj.from} is frozen!`);
             return false;
         }
         
+        const oppColor = playerColor === 'w' ? 'b' : 'w';
         let moveResult;
-        let isSpecialMove = state.activeEffects[playerColor].teleport || selectionMode === 'revive';
-        
-        if (isSpecialMove) {
-            const piece = selectionMode === 'revive' ? selectedPiece : game.get(moveObj.from);
-            if (!piece) return false;
-            
-            // For teleport/revive, manually place piece
-            if (selectionMode !== 'revive') {
-                game.remove(moveObj.from);
-            }
-            
-            // Check if placement would put own king in check
+
+        if (state.activeEffects[playerColor].teleport) {
+            // TELEPORT: move any own piece to any square, no chess rules
+            const piece = game.get(moveObj.from);
+            if (!piece || piece.color !== playerColor) return false;
+
+            // Safety: don't allow if it would put own king in check
             const testGame = new Chess(game.fen());
-            if (selectionMode !== 'revive') {
-                testGame.remove(moveObj.from);
-            }
+            testGame.remove(moveObj.from);
             testGame.put(piece, moveObj.to);
-            
-            if (testGame.in_check() && testGame.turn() === playerColor) {
-                addLog(`⚠️ Cannot place piece - your king would be in check!`);
+            // Flip turn in testGame so in_check checks the right side
+            const tTokens = testGame.fen().split(' ');
+            tTokens[1] = playerColor;
+            testGame.load(tTokens.join(' '));
+            if (testGame.in_check()) {
+                addLog(`⚠️ Teleport blocked — would leave your king in check`);
                 return false;
             }
-            
+
+            game.remove(moveObj.from);
             game.put(piece, moveObj.to);
-            
-            // Manually switch turn
-            state.turn = state.turn === 'w' ? 'b' : 'w';
-            let tokens = game.fen().split(' ');
-            tokens[1] = state.turn;
-            tokens[5] = String(parseInt(tokens[5]) + 1); // Increment move number
-            game.load(tokens.join(' '));
-            
+
             state.activeEffects[playerColor].teleport = false;
-            if (selectionMode === 'revive') {
-                addLog(`♻️ ${playerColor === 'w' ? 'W' : 'B'}: Revive ${piece.type.toUpperCase()} → ${moveObj.to}`);
-                selectionMode = null;
-                selectedPiece = null;
-            } else {
-                addLog(`✨ ${playerColor === 'w' ? 'W' : 'B'}: Teleport ${moveObj.from}→${moveObj.to}`);
-            }
-            
+            addLog(`✨ ${playerColor === 'w' ? 'W' : 'B'}: Teleport ${moveObj.from}→${moveObj.to}`);
+
+            // Manually flip turn
+            state.turn = playerColor === 'w' ? 'b' : 'w';
+            const tokens = game.fen().split(' ');
+            tokens[1] = state.turn;
+            game.load(tokens.join(' '));
+
             moveResult = { captured: null, san: null };
         } else {
             moveResult = game.move(moveObj);
         }
 
         if (moveResult) {
-            // Track captures
             if(moveResult.captured) {
                 state.captured[playerColor].push({ type: moveResult.captured, color: oppColor });
                 updateMaterialScore();
-                if(moveResult.captured !== 'p') {
-                    awardCard(playerColor);
-                }
+                if(moveResult.captured !== 'p') awardCard(playerColor);
             }
-            
-            // Build chess notation log entry
-            let notation = '';
-            if (moveResult.san) {
-                notation = moveResult.san; // standard algebraic notation from chess.js
-            } else if (selectionMode === null && state.activeEffects[playerColor].teleport === false) {
-                // Already cleared teleport above, build manual notation
-                notation = `${moveObj.from}-${moveObj.to}`;
-            }
-            
-            // Process temp effects expiry
+
             moveCount++;
+            // Expire temp effects
             state.tempEffects = state.tempEffects.filter(effect => {
                 if (effect.expiryTurn <= moveCount) {
                     if (effect.type === 'queen_pawn') {
-                        const currentPiece = game.get(effect.square);
-                        if (currentPiece && currentPiece.type === 'p') {
+                        const cur = game.get(effect.square);
+                        if (cur && cur.type === 'p') {
                             game.remove(effect.square);
                             game.put(effect.originalPiece, effect.square);
-                            addLog(`👑 Queen restored at ${effect.square}`);
+                            addLog(`👑 Queen at ${effect.square} restored!`);
                         }
                     }
                     if (effect.type === 'board_flip') {
@@ -547,26 +623,27 @@
                 }
                 return true;
             });
-            
+
             state.fen = game.fen();
             state.turn = game.turn();
-            
-            // Check / checkmate detection
-            if(game.in_checkmate()) {
+
+            // Log with SAN notation + check/checkmate
+            const notation = moveResult.san || `${moveObj.from}-${moveObj.to}`;
+            if (game.in_checkmate()) {
                 addLog(`♟ ${notation} — CHECKMATE! ${playerColor === 'w' ? 'White' : 'Black'} wins!`);
                 endGame(`${playerColor === 'w' ? 'White' : 'Black'} Wins by Checkmate!`);
-            } else if(game.in_check()) {
-                addLog(`♟ ${notation} — CHECK!`);
-            } else if(game.in_stalemate()) {
+            } else if (game.in_check()) {
+                addLog(`♟ ${playerColor === 'w' ? 'W' : 'B'}: ${notation} — CHECK!`);
+            } else if (game.in_stalemate()) {
                 addLog(`♟ ${notation} — Stalemate`);
                 endGame('Draw — Stalemate');
-            } else if(game.in_draw()) {
+            } else if (game.in_draw()) {
                 addLog(`♟ ${notation} — Draw`);
                 endGame('Draw');
             } else if (notation) {
                 addLog(`♟ ${playerColor === 'w' ? 'W' : 'B'}: ${notation}`);
             }
-            
+
             sync();
             return true;
         }
@@ -599,22 +676,13 @@
                 }
             }
             else if(data.type === 'FREEZE_PIECE') {
-                state.activeEffects.b.frozenPiece = data.square;
-                addLog(`❄️ B froze piece at ${data.square}!`);
+                // Client (black) is freezing a host (white) piece
+                state.activeEffects.w.frozenPiece = data.square;
+                addLog(`❄️ B froze ${game.get(data.square)?.type.toUpperCase() || 'piece'} at ${data.square}`);
                 sync();
             }
             else if(data.type === 'REVIVE_PIECE') {
-                selectedPiece = data.piece;
-                const success = processMove({ from: null, to: data.square }, 'b');
-                if (success) {
-                    const idx = state.captured.b.findIndex(p => 
-                        p.type === data.piece.type && p.color === data.piece.color
-                    );
-                    if (idx > -1) state.captured.b.splice(idx, 1);
-                    updateMaterialScore();
-                }
-                selectedPiece = null;
-                sync();
+                processRevive('b', data.piece, data.square);
             }
         } else if(data.type === 'STATE') applyState(data.payload);
     }
@@ -647,12 +715,11 @@
             return true;
         }
         else if(id === 'freeze') {
-            // Enter freeze selection mode
             if (user === myColor) {
                 selectionMode = 'freeze';
-                showSelectionMessage('Click an opponent piece to freeze it');
+                showSelectionMessage('❄️ Click an opponent piece to freeze it');
             }
-            addLog(`🔮 ${CARDS[id].name} activated by ${user.toUpperCase()} - selecting target...`);
+            addLog(`🔮 ${CARDS[id].name} activated by ${user === 'w' ? 'W' : 'B'}`);
             return true;
         }
         else if(id === 'cancel_card') {
@@ -700,27 +767,27 @@
             return false;
         }
         else if(id === 'revive') {
-            const myCaptured = state.captured[user];
-            if (myCaptured.length === 0) {
-                addLog(`🔮 ${CARDS[id].name} fizzled - no captured pieces!`);
+            // Show pieces of MY color that were captured (i.e., what opponent captured)
+            const oppCaptured = state.captured[opp];  // Opponent's captures = my dead pieces
+            const myDeadPieces = oppCaptured.filter(p => p.color === user);
+            
+            if (myDeadPieces.length === 0) {
+                addLog(`🔮 ${CARDS[id].name} fizzled — no captured pieces to revive`);
                 return false;
             }
             if (user === myColor) {
-                selectionMode = 'revive';
-                showSelectionMessage('Select a captured piece, then click where to place it');
-                showCapturedPieceSelection(user);
+                openReviveModal(myDeadPieces);
             }
-            addLog(`🔮 ${CARDS[id].name} activated by ${user.toUpperCase()} - selecting piece...`);
+            addLog(`🔮 ${CARDS[id].name} activated by ${user === 'w' ? 'W' : 'B'}`);
             return true;
         }
         else if(id === 'board_flip') { 
-            state.activeEffects[opp].flipped = true;
-            state.tempEffects.push({
-                type: 'board_flip',
-                target: opp,
-                expiryTurn: moveCount + 4  // 2 full turns = 4 half-moves
-            });
-            addLog(`🔮 ${CARDS[id].name} used by ${user.toUpperCase()} — ${opp.toUpperCase()} board flipped for 2 turns`);
+            state.activeEffects[opp].flipped = true; 
+            setTimeout(() => { 
+                state.activeEffects[opp].flipped = false; 
+                if(isHost) sync(); 
+            }, 10000);
+            addLog(`🔮 ${CARDS[id].name} used by ${user.toUpperCase()}`);
             return true;
         }
         
@@ -744,15 +811,6 @@
         if (overlay) overlay.style.display = 'none';
     }
 
-    function showCapturedPieceSelection(color) {
-        const capturedDiv = document.getElementById('my-captures');
-        const pieces = capturedDiv.querySelectorAll('.captured-piece');
-        pieces.forEach(piece => {
-            piece.style.cursor = 'pointer';
-            piece.style.border = '2px solid var(--accent)';
-        });
-    }
-
     function applyState(s) {
         const myT = myColor==='w'?s.whiteTime:s.blackTime;
         const opT = myColor==='w'?s.blackTime:s.whiteTime;
@@ -763,12 +821,8 @@
         state.turn = s.turn;
 
         const isMy = s.turn === myColor;
-        const inCheck = game.in_check();
-        const checkLabel = inCheck && isMy ? ' ⚠️ CHECK!' : '';
         document.getElementById('my-indicator').className = `mini-indicator ${isMy?'active':''}`;
-        document.getElementById('my-indicator').textContent = isMy ? `Your Turn${checkLabel}` : 'Your Turn';
         document.getElementById('opp-indicator').className = `mini-indicator ${!isMy?'active':''}`;
-        document.getElementById('opp-indicator').textContent = !isMy ? `Opponent${inCheck && !isMy ? ' ⚠️' : ''}` : 'Opponent';
 
         // Always update game and board position
         if(game.fen() !== s.fen) { 
@@ -826,24 +880,11 @@
     function renderCapturedPieces(elementId, pieces) {
         const container = document.getElementById(elementId);
         container.innerHTML = '';
-        
-        pieces.forEach((piece, idx) => {
+        const typeMap = { p: 'pawn', n: 'horse', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
+        pieces.forEach((piece) => {
             const div = document.createElement('div');
             div.className = 'captured-piece';
-            const colorPrefix = piece.color === 'w' ? 'w' : 'b';
-            const typeMap = { p: 'pawn', n: 'horse', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
-            div.style.backgroundImage = `url('${ASSETS_PATH}pieces/${colorPrefix}${typeMap[piece.type]}.png')`;
-            
-            // Click handler for revive mode
-            if (elementId === 'my-captures' && selectionMode === 'revive') {
-                div.onclick = () => {
-                    selectedPiece = { type: piece.type, color: myColor };
-                    document.querySelectorAll('.captured-piece').forEach(p => p.classList.remove('selected'));
-                    div.classList.add('selected');
-                    showSelectionMessage('Now click on the board where to place it');
-                };
-            }
-            
+            div.style.backgroundImage = `url('${ASSETS_PATH}pieces/${piece.color}${typeMap[piece.type]}.png')`;
             container.appendChild(div);
         });
     }
