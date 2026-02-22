@@ -298,8 +298,8 @@
         hands: { w: [], b: [] },
         captured: { w: [], b: [] }, // Pieces captured BY each color
         activeEffects: {
-            w: { frozen: 0, teleport: false, flipped: false, frozenPiece: null },
-            b: { frozen: 0, teleport: false, flipped: false, frozenPiece: null }
+            w: { frozen: 0, teleport: false, flipped: false, frozenPiece: null, hasCounter: false },
+            b: { frozen: 0, teleport: false, flipped: false, frozenPiece: null, hasCounter: false }
         },
         tempEffects: [], // Array of {type, square, originalPiece, expiryTurn}
         logs: ["Game initialized..."],
@@ -308,12 +308,13 @@
 
     const CARDS = {
         'add_time': { name: 'Time Warp', desc: '+30s to your clock' },
-        'freeze': { name: 'Glacial', desc: 'Freeze opponent piece' },
-        'cancel_card': { name: 'Mind Wipe', desc: 'Burn random enemy card' },
-        'teleport': { name: 'Quantum', desc: 'Move piece anywhere (Should not check)' },
-        'queen_pawn': { name: 'Demotion', desc: 'Enemy Queen -> Pawn (2 turns)' },
-        'revive': { name: 'Necro', desc: 'Revive captured piece' },
-        'board_flip': { name: 'Vertigo', desc: 'Flipped vision for 1.5 min' }
+        'freeze': { name: 'Glacial', desc: 'Freeze one opponent piece for 15s' },
+        'burn_card': { name: 'Mind Wipe', desc: 'Burn random enemy card' },
+        'counter': { name: 'Counter', desc: 'Block opponent\'s next card' },
+        'teleport': { name: 'Quantum', desc: 'Move any your piece anywhere (no check)' },
+        'queen_pawn': { name: 'Demotion', desc: "Enemy Queen → Pawn for 2 turns" },
+        'revive': { name: 'Necro', desc: 'Place a captured piece back on the board' },
+        'board_flip': { name: 'Vertigo', desc: "Flip opponent's board view for 30s" }
     };
 
     // Piece values for material score
@@ -428,10 +429,20 @@
             if (piece && piece.color === oppColor) {
                 if (isHost) {
                     state.activeEffects[oppColor].frozenPiece = square;
-                    addLog(`❄️ ${myColor === 'w' ? 'W' : 'B'} froze ${piece.type.toUpperCase()} at ${square}`);
+                    addLog(`❄️ ${myColor === 'w' ? 'W' : 'B'} froze ${piece.type.toUpperCase()} at ${square} for 15s`);
                     selectionMode = null;
                     hideSelectionMessage();
-                    sync();
+                    
+                    // Auto-unfreeze after 15 seconds
+                    setTimeout(() => {
+                        if (state.activeEffects[oppColor].frozenPiece === square) {
+                            state.activeEffects[oppColor].frozenPiece = null;
+                            addLog(`❄️ Piece at ${square} unfrozen`);
+                            if (isHost) sync();
+                        }
+                    }, 15000);
+                    
+                    endTurnAfterCard(myColor); // End turn after freeze
                 } else {
                     conn.send({ type: 'FREEZE_PIECE', square });
                     selectionMode = null;
@@ -488,12 +499,12 @@
 
         // Place on board
         game.put({ type: piece.type, color: playerColor }, square);
-        
-        // Update FEN but DON'T flip turn (cards don't end your turn)
         state.fen = game.fen();
 
         addLog(`♻️ ${playerColor === 'w' ? 'W' : 'B'}: Revive ${piece.type.toUpperCase()} → ${square}`);
-        sync();
+        
+        // End turn after revive
+        endTurnAfterCard(playerColor);
     }
 
     function cancelRevive() {
@@ -615,10 +626,6 @@
                             addLog(`👑 Queen at ${effect.square} restored!`);
                         }
                     }
-                    if (effect.type === 'board_flip') {
-                        state.activeEffects[effect.target].flipped = false;
-                        addLog(`🔄 Board flip expired for ${effect.target.toUpperCase()}`);
-                    }
                     return false;
                 }
                 return true;
@@ -677,9 +684,21 @@
             }
             else if(data.type === 'FREEZE_PIECE') {
                 // Client (black) is freezing a host (white) piece
-                state.activeEffects.w.frozenPiece = data.square;
-                addLog(`❄️ B froze ${game.get(data.square)?.type.toUpperCase() || 'piece'} at ${data.square}`);
-                sync();
+                const square = data.square;
+                state.activeEffects.w.frozenPiece = square;
+                const piece = game.get(square);
+                addLog(`❄️ B froze ${piece?.type.toUpperCase() || 'piece'} at ${square} for 15s`);
+                
+                // Auto-unfreeze after 15 seconds
+                setTimeout(() => {
+                    if (state.activeEffects.w.frozenPiece === square) {
+                        state.activeEffects.w.frozenPiece = null;
+                        addLog(`❄️ Piece at ${square} unfrozen`);
+                        if (isHost) sync();
+                    }
+                }, 15000);
+                
+                endTurnAfterCard('b'); // End black's turn after freeze
             }
             else if(data.type === 'REVIVE_PIECE') {
                 processRevive('b', data.piece, data.square);
@@ -709,33 +728,51 @@
     function executeCardLogic(id, user) {
         const opp = user === 'w' ? 'b' : 'w';
         
+        // Check if opponent has counter active (except for counter card itself)
+        if (id !== 'counter' && state.activeEffects[opp].hasCounter) {
+            state.activeEffects[opp].hasCounter = false;
+            addLog(`🛡️ ${opp === 'w' ? 'W' : 'B'}: Counter blocked ${CARDS[id].name}!`);
+            endTurnAfterCard(user);
+            return true;
+        }
+        
         if(id === 'add_time') { 
             if(user==='w') state.whiteTime+=30; else state.blackTime+=30;
-            addLog(`🔮 ${CARDS[id].name} used by ${user.toUpperCase()}`);
+            addLog(`🔮 ${CARDS[id].name} used by ${user === 'w' ? 'W' : 'B'}`);
+            endTurnAfterCard(user);
+            return true;
+        }
+        else if(id === 'counter') {
+            state.activeEffects[user].hasCounter = true;
+            addLog(`🛡️ ${user === 'w' ? 'W' : 'B'}: Counter ready — will block opponent's next card`);
+            endTurnAfterCard(user);
             return true;
         }
         else if(id === 'freeze') {
             if (user === myColor) {
                 selectionMode = 'freeze';
-                showSelectionMessage('❄️ Click an opponent piece to freeze it');
+                showSelectionMessage('❄️ Click an opponent piece to freeze it for 15 seconds');
             }
             addLog(`🔮 ${CARDS[id].name} activated by ${user === 'w' ? 'W' : 'B'}`);
+            // Don't end turn yet - wait for freeze selection
             return true;
         }
-        else if(id === 'cancel_card') {
+        else if(id === 'burn_card') {
             const oppHand = state.hands[opp];
             if (oppHand.length > 0) {
                 const randomIdx = Math.floor(Math.random() * oppHand.length);
                 const burned = oppHand.splice(randomIdx, 1)[0];
-                addLog(`🔥 ${CARDS[id].name}: ${CARDS[burned].name} burned from ${opp.toUpperCase()}'s hand!`);
+                addLog(`🔥 ${CARDS[id].name}: ${CARDS[burned].name} burned from ${opp === 'w' ? 'W' : 'B'}'s hand!`);
             } else {
-                addLog(`🔮 ${CARDS[id].name} fizzled - ${opp.toUpperCase()} has no cards!`);
+                addLog(`🔮 ${CARDS[id].name} fizzled — ${opp === 'w' ? 'W' : 'B'} has no cards!`);
             }
+            endTurnAfterCard(user);
             return true;
         }
         else if(id === 'teleport') {
             state.activeEffects[user].teleport = true;
-            addLog(`🔮 ${CARDS[id].name} activated by ${user.toUpperCase()}`);
+            addLog(`🔮 ${CARDS[id].name} activated by ${user === 'w' ? 'W' : 'B'}`);
+            // Don't end turn - wait for teleport move
             return true;
         }
         else if(id === 'queen_pawn') {
@@ -750,7 +787,6 @@
                         game.put({type:'p', color:opp}, sq);
                         state.fen = game.fen();
                         
-                        // Add temp effect that expires in 2 full turns (4 half-moves)
                         state.tempEffects.push({
                             type: 'queen_pawn',
                             square: sq,
@@ -758,40 +794,58 @@
                             expiryTurn: moveCount + 4
                         });
                         
-                        addLog(`🔮 ${CARDS[id].name}: ${opp.toUpperCase()} Queen demoted at ${sq} (2 turns)`);
+                        addLog(`🔮 ${CARDS[id].name}: ${opp === 'w' ? 'W' : 'B'} Queen demoted at ${sq} (2 turns)`);
+                        endTurnAfterCard(user);
                         return true;
                     }
                 }
             }
-            addLog(`🔮 ${CARDS[id].name} fizzled - no Queen found!`);
+            addLog(`🔮 ${CARDS[id].name} fizzled — no Queen found!`);
+            endTurnAfterCard(user);
             return false;
         }
         else if(id === 'revive') {
-            // Show pieces of MY color that were captured (i.e., what opponent captured)
-            const oppCaptured = state.captured[opp];  // Opponent's captures = my dead pieces
+            const oppCaptured = state.captured[opp];
             const myDeadPieces = oppCaptured.filter(p => p.color === user);
             
             if (myDeadPieces.length === 0) {
                 addLog(`🔮 ${CARDS[id].name} fizzled — no captured pieces to revive`);
+                endTurnAfterCard(user);
                 return false;
             }
             if (user === myColor) {
                 openReviveModal(myDeadPieces);
             }
             addLog(`🔮 ${CARDS[id].name} activated by ${user === 'w' ? 'W' : 'B'}`);
+            // Don't end turn - wait for revive placement
             return true;
         }
         else if(id === 'board_flip') { 
-            state.activeEffects[opp].flipped = true; 
-            setTimeout(() => { 
-                state.activeEffects[opp].flipped = false; 
-                if(isHost) sync(); 
-            }, 10000);
-            addLog(`🔮 ${CARDS[id].name} used by ${user.toUpperCase()}`);
+            state.activeEffects[opp].flipped = true;
+            addLog(`🔮 ${CARDS[id].name}: ${opp === 'w' ? 'W' : 'B'} board flipped for 30s`);
+            
+            // Time-based: 30 seconds
+            setTimeout(() => {
+                state.activeEffects[opp].flipped = false;
+                if (isHost) sync();
+            }, 30000);
+            
+            endTurnAfterCard(user);
             return true;
         }
         
         return false;
+    }
+
+    function endTurnAfterCard(user) {
+        if (!isHost) return; // Only host manages turn switching
+        
+        state.turn = user === 'w' ? 'b' : 'w';
+        const tokens = game.fen().split(' ');
+        tokens[1] = state.turn;
+        game.load(tokens.join(' '));
+        state.fen = game.fen();
+        sync();
     }
 
     function showSelectionMessage(msg) {
@@ -821,8 +875,15 @@
         state.turn = s.turn;
 
         const isMy = s.turn === myColor;
+        const inCheck = game.in_check();
+        const checkLabel = inCheck && isMy ? ' ⚠️ CHECK!' : '';
+        const myCounter = (myColor === 'w' ? s.activeEffects.w : s.activeEffects.b).hasCounter ? ' 🛡️' : '';
+        const oppCounter = (myColor === 'w' ? s.activeEffects.b : s.activeEffects.w).hasCounter ? ' 🛡️' : '';
+        
         document.getElementById('my-indicator').className = `mini-indicator ${isMy?'active':''}`;
+        document.getElementById('my-indicator').textContent = isMy ? `Your Turn${checkLabel}${myCounter}` : `Your Turn${myCounter}`;
         document.getElementById('opp-indicator').className = `mini-indicator ${!isMy?'active':''}`;
+        document.getElementById('opp-indicator').textContent = !isMy ? `Opponent${inCheck && !isMy ? ' ⚠️' : ''}${oppCounter}` : `Opponent${oppCounter}`;
 
         // Always update game and board position
         if(game.fen() !== s.fen) { 
